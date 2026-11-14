@@ -580,13 +580,13 @@ class GameControls {
             this.locomotive.bodyGroup.localToWorld(this._deckLook);
             this.camera.lookAt(this._deckLook);
 
-            const targetFov = this._fitFov(78) + (this.deckFovOffset || 0) + sp * 5.0;
+            const targetFov = this._fitFov(78) + (this.deckFovOffset || 0);
             this._applyFov(targetFov);
             return;
         }
 
-        // Orbit FOV adjusted to prevent tunnel vision on mobile (B9)
-        this._applyFov(this._fitFov(70) + this.trainPhysics.getSpeedRatio() * 4.0);
+        // Orbit FOV adjusted for aspect ratio without dynamic speed distortion
+        this._applyFov(this._fitFov(GAME_CONFIG.camera.fov || 52));
 
         // Mode 2: Trackside Fly-by Camera
         if (this.camModeIdx === 2) {
@@ -621,9 +621,7 @@ class GameControls {
             return;
         }
 
-        // Mode 0: Smooth Orbit Chase Camera
-        const sp = this.trainPhysics.getSpeedRatio();
-        this.targetDistance += (sp * 5.0 - (this.targetDistance - GAME_CONFIG.camera.defaultDistance) * 0.1) * dt;
+        // Mode 0: Smooth Orbit Chase Camera (User controls distance, pitch, and yaw manually with zero auto-panning)
         this.distance += (this.targetDistance - this.distance) * Math.min(1.0, dt * 10.0);
 
         const cosP = Math.cos(this.pitch);

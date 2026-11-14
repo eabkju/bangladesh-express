@@ -770,19 +770,19 @@ body.deck-view #canvas-container::after {
 
     <!-- Top Status & Mode HUD -->
     <header id="top-hud">
-        <button id="btn-day-night" class="hud-btn" title="Cycle Day / Golden Sunset / Moonlit Night (Hotkey: N)">
+        <button id="btn-day-night" class="hud-btn" title="Cycle Day / Dawn / Moonlit Night (Hotkey: N)">
             <span class="hud-icon">☀️</span>
             <span class="hud-val">Day</span>
         </button>
-        <button id="btn-rain" class="hud-btn" title="Toggle Rain Atmosphere (Hotkey: R)">
+        <button id="btn-rain" class="hud-btn" title="Toggle Monsoon Rain Atmosphere (Hotkey: R)">
             <span class="hud-icon">🌧️</span>
             <span class="hud-val">Rain: OFF</span>
         </button>
         <button id="btn-cam-mode" class="hud-btn" title="Switch Camera View (Hotkey: C)">
             <span class="hud-val">🎥 Chase</span>
         </button>
-        <button id="btn-eco-mode" class="hud-btn eco-active" title="Toggle Thermal CPU / FPS Cap">
-            <span class="hud-val">🌿 Cool 45 FPS</span>
+        <button id="btn-eco-mode" class="hud-btn eco-active" title="Toggle Graphics &amp; FPS Quality Tier (Low, Moderate, Medium, High)">
+            <span class="hud-val">🌿 Moderate 40 FPS</span>
         </button>
         <button id="btn-mute" class="hud-btn" title="Mute / Unmute Sound">
             <span class="hud-icon">🔊</span>
@@ -806,6 +806,10 @@ body.deck-view #canvas-container::after {
         </div>
         <div class="drawer-content">
             <div class="menu-section">
+                <h4>Graphics &amp; Performance Quality</h4>
+                <div class="menu-hint">Tiers: Low (30 FPS) · Moderate (40 FPS) · Medium (50 FPS) · High (60 FPS)</div>
+            </div>
+            <div class="menu-section">
                 <h4>Controls &amp; Layout</h4>
                 <button id="btn-toggle-left-hand" class="menu-action-btn">
                     <span>Left-Handed Layout</span>
@@ -821,8 +825,8 @@ body.deck-view #canvas-container::after {
                 </button>
             </div>
             <div class="menu-section">
-                <h4>Camera Modes</h4>
-                <div class="menu-hint">C: Cycle View · Double-tap in Deck POV to center</div>
+                <h4>Camera Modes &amp; Controls</h4>
+                <div class="menu-hint">Drag screen: Manual pan &amp; orbit angle · Pinch / Wheel / +/- : Zoom · C: Cycle View · 🎯: Recenter</div>
             </div>
             <div class="menu-section">
                 <h4>Keyboard Shortcuts</h4>
@@ -831,7 +835,7 @@ body.deck-view #canvas-container::after {
                     <div><kbd>H</kbd> Train Horn</div>
                     <div><kbd>L</kbd> Headlights</div>
                     <div><kbd>C</kbd> Camera Mode</div>
-                    <div><kbd>N</kbd> Day / Sunset / Night</div>
+                    <div><kbd>N</kbd> Day / Dawn / Night</div>
                     <div><kbd>R</kbd> Rain Atmosphere</div>
                     <div><kbd>+/-</kbd> Zoom Distance / FOV</div>
                 </div>
@@ -959,14 +963,15 @@ window.GAME_CONFIG = {
         }
     },
 
-    // Performance & Thermal Settings
+    // Performance & Thermal Settings (Low, Moderate, Medium, High Quality Tiers)
     performance: {
         modes: [
-            { id: 'balanced', label: '🌿 Cool 45 FPS', fpsCap: 45, maxDpr: 1.25, k: 1 },
-            { id: 'eco',      label: '⚡ Eco 30 FPS',  fpsCap: 30, maxDpr: 1.0,  k: 2 },
-            { id: 'max',      label: '🚀 60 FPS',      fpsCap: 60, maxDpr: 1.5,  k: 1 }
+            { id: 'low',      name: 'Low',      label: '⚡ Low 30 FPS',      fpsCap: 30, maxDpr: 0.85, lodDistance: 900  },
+            { id: 'moderate', name: 'Moderate', label: '🌿 Moderate 40 FPS', fpsCap: 40, maxDpr: 1.0,  lodDistance: 1500 },
+            { id: 'medium',   name: 'Medium',   label: '✨ Medium 50 FPS',   fpsCap: 50, maxDpr: 1.35, lodDistance: 2100 },
+            { id: 'high',     name: 'High',     label: '🚀 High 60 FPS',     fpsCap: 60, maxDpr: 2.0,  lodDistance: 2600 }
         ],
-        defaultModeIndex: 0
+        defaultModeIndex: 1 // Default to Moderate 40 FPS for balanced performance & battery
     },
 
     // Visual Themes / Lighting (Bangladeshi Simulator Palette - Section 20)
@@ -997,7 +1002,7 @@ window.GAME_CONFIG = {
         insulators: 0x5ca38a,
         lampWarm: 0xffd982,
 
-        // Atmospheric Presets
+        // Atmospheric Presets (Day, Dawn, Night)
         presets: {
             day: {
                 name: 'Day',
@@ -1018,24 +1023,24 @@ window.GAME_CONFIG = {
                 moonVisible: false,
                 windowGlow: 0.08
             },
-            sunset: {
-                name: 'Sunset',
+            dawn: {
+                name: 'Dawn',
                 icon: '🌅',
-                skyTop: 0x2c355c,
-                skyHorizon: 0xe6844e,
-                fogColor: 0xd9875b,
-                fogDensity: 0.00052,
-                sunColor: 0xff944d,
-                sunIntensity: 1.35,
-                sunPos: [-220, 95, 180],
-                hemiSky: 0xffa066,
-                hemiGround: 0x3d2920,
+                skyTop: 0x3a4b7c,
+                skyHorizon: 0xf4a261,
+                fogColor: 0xe8a882,
+                fogDensity: 0.00060,
+                sunColor: 0xffb870,
+                sunIntensity: 1.15,
+                sunPos: [220, 85, 120],
+                hemiSky: 0xfaa57b,
+                hemiGround: 0x3d4f2b,
                 hemiIntensity: 0.68,
-                ambientColor: 0x8f5b4a,
-                ambientIntensity: 0.30,
-                starOpacity: 0.25,
+                ambientColor: 0x7e5f52,
+                ambientIntensity: 0.32,
+                starOpacity: 0.12,
                 moonVisible: false,
-                windowGlow: 0.75
+                windowGlow: 0.40
             },
             night: {
                 name: 'Night',
@@ -3883,8 +3888,8 @@ class VillageManager {
             },
             {
                 name: "দক্ষিণপাড়া বাড়ি (South River Loop)",
-                pos: new THREE.Vector3(230, 0, 1080),
-                rotY: -1.4,
+                pos: new THREE.Vector3(240, 0, 950), // Safely inside loop, > 55m from train line
+                rotY: -2.2,
                 paddyType: 'golden'
             },
             {
@@ -3905,42 +3910,62 @@ class VillageManager {
             const hc = homesteadConfigs[i];
             const bari = new BengaliHomestead(this.scene, this.materials, hc);
             this.farmsteads.push(bari);
+            bari.group.updateMatrixWorld(true);
+
+            // Compute safe world coordinates via localToWorld (ensures > 23m track clearance)
+            const f1Home = bari.group.localToWorld(new THREE.Vector3(-4, 0, 1));
+            const f1Work = bari.group.localToWorld(new THREE.Vector3(16, 0, -2));
+            const f2Home = bari.group.localToWorld(new THREE.Vector3(4, 0, -2));
+            const f2Work = bari.group.localToWorld(new THREE.Vector3(20, 0, 2));
+
+            const cow1Home = bari.group.localToWorld(new THREE.Vector3(-7, 0, 5.5));
+            const cow1Past = bari.group.localToWorld(new THREE.Vector3(15, 0, -6));
+            const cow2Home = bari.group.localToWorld(new THREE.Vector3(-5.5, 0, 5.5));
+            const cow2Past = bari.group.localToWorld(new THREE.Vector3(19, 0, -6));
 
             // Add Working Farmers wearing Lungi, Gamcha & Bamboo Hat (Section 22)
             const f1 = new BengaliFarmer(this.scene, this.materials, {
                 id: `farmer_${i}_1`,
-                homePos: new THREE.Vector3(hc.pos.x - 6, 0, hc.pos.z + 4),
-                workPos: new THREE.Vector3(hc.pos.x + 16, 0, hc.pos.z + 12),
+                homePos: f1Home,
+                workPos: f1Work,
                 lungiMat: i % 2 === 0 ? this.materials.lungiMaroonMat : this.materials.lungiNavyMat,
                 hasHat: true,
-                speed: 1.15 + (i * 0.08)
+                speed: 1.15 + (i * 0.08),
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
 
             const f2 = new BengaliFarmer(this.scene, this.materials, {
                 id: `farmer_${i}_2`,
-                homePos: new THREE.Vector3(hc.pos.x + 4, 0, hc.pos.z - 8),
-                workPos: new THREE.Vector3(hc.pos.x + 22, 0, hc.pos.z - 6),
+                homePos: f2Home,
+                workPos: f2Work,
                 lungiMat: this.materials.lungiGreenMat,
                 hasHat: false,
-                speed: 1.25
+                speed: 1.25,
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
             this.farmers.push(f1, f2);
 
             // Add Desi Zebu Cattle (হাঁটু ও পিঠের কুঁজযুক্ত দেশি গরু - Section 23)
             const cow1 = new DesiZebuCow(this.scene, this.materials, {
                 id: `cow_${i}_1`,
-                homePos: new THREE.Vector3(hc.pos.x + 8, 0, hc.pos.z + 6),
-                pasturePos: new THREE.Vector3(hc.pos.x + 18, 0, hc.pos.z + 18),
+                homePos: cow1Home,
+                pasturePos: cow1Past,
                 isWhite: (i % 2 === 0),
-                isDraftWorker: (i === 0 || i === 2) // Plough team bullock
+                isDraftWorker: (i === 0 || i === 2), // Plough team bullock
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
 
             const cow2 = new DesiZebuCow(this.scene, this.materials, {
                 id: `cow_${i}_2`,
-                homePos: new THREE.Vector3(hc.pos.x + 11, 0, hc.pos.z + 6),
-                pasturePos: new THREE.Vector3(hc.pos.x + 24, 0, hc.pos.z + 15),
+                homePos: cow2Home,
+                pasturePos: cow2Past,
                 isWhite: (i % 2 !== 0),
-                isDraftWorker: false
+                isDraftWorker: false,
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
             this.cows.push(cow1, cow2);
         }
@@ -4111,12 +4136,12 @@ class VillageManager {
 
     onTimeOfDayChange(presetKey) {
         this.currentTimePreset = presetKey;
-        const isNightOrSunset = (presetKey === 'night' || presetKey === 'sunset');
+        const isNight = (presetKey === 'night');
         for (let i = 0; i < this.farmers.length; i++) {
-            this.farmers[i].setTargetMode(isNightOrSunset ? 'HEADING_HOME' : 'HEADING_FARM');
+            this.farmers[i].setTargetMode(isNight ? 'HEADING_HOME' : 'HEADING_FARM');
         }
         for (let i = 0; i < this.cows.length; i++) {
-            this.cows[i].setTargetMode(isNightOrSunset ? 'HEADING_HOME' : 'HEADING_PASTURE');
+            this.cows[i].setTargetMode(isNight ? 'HEADING_HOME' : 'HEADING_PASTURE');
         }
     }
 
@@ -4517,13 +4542,16 @@ class BengaliFarmer {
         this.scene = scene;
         this.materials = materials;
         this.opts = opts;
+        this.trackSystem = opts.trackSystem;
 
         this.homePos = opts.homePos.clone();
         this.workPos = opts.workPos.clone();
-        this.currentPos = opts.homePos.clone();
-        this.targetPos = opts.workPos.clone();
 
-        this.state = 'FARMING';
+        const isNight = (opts.initialPreset === 'night');
+        this.state = isNight ? 'AT_HOME' : 'FARMING';
+        this.currentPos = isNight ? opts.homePos.clone() : opts.workPos.clone();
+        this.targetPos = isNight ? opts.homePos.clone() : opts.workPos.clone();
+
         this.isRaining = false;
         this.speed = opts.speed || 1.2;
         this.walkPhase = Math.random() * Math.PI * 2;
@@ -4532,6 +4560,7 @@ class BengaliFarmer {
         this._dir = new THREE.Vector3();
 
         this._buildMesh(opts);
+        if (isNight && this.toolGroup) this.toolGroup.visible = false;
         this.scene.add(this.root);
     }
 
@@ -4634,6 +4663,15 @@ class BengaliFarmer {
     }
 
     update(dt) {
+        // Strict Track Envelope Safety Guard: Never allow farmer closer than 6.0m to any rail
+        if (this.trackSystem) {
+            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
+            if (trackDist < 6.0) {
+                this.currentPos.lerp(this.homePos, 0.25);
+                this.root.position.copy(this.currentPos);
+            }
+        }
+
         // B18 FIX: Properly reset torso & head rotation so farmer does not freeze bent over!
         if (this.isRaining) {
             this.torsoMesh.rotation.x = 0;
@@ -4671,11 +4709,26 @@ class BengaliFarmer {
             } else {
                 if (this.state === 'HEADING_HOME') {
                     this.state = 'AT_HOME';
+                    if (this.toolGroup) this.toolGroup.visible = false;
                 } else {
                     this.state = 'FARMING';
                     if (this.toolGroup) this.toolGroup.visible = true;
                 }
             }
+            return;
+        }
+
+        if (this.state === 'AT_HOME') {
+            // Resting at home / courtyard in evening and night
+            this.idleTimer += dt * 1.5;
+            const breath = Math.sin(this.idleTimer) * 0.04;
+            this.torsoMesh.rotation.x = breath;
+            this.headGroup.rotation.x = breath * 0.5;
+            this.leftLeg.rotation.x = 0;
+            this.rightLeg.rotation.x = 0;
+            this.leftArm.rotation.x = 0;
+            this.rightArm.rotation.x = 0;
+            if (this.toolGroup) this.toolGroup.visible = false;
             return;
         }
 
@@ -4700,13 +4753,16 @@ class DesiZebuCow {
         this.scene = scene;
         this.materials = materials;
         this.opts = opts;
+        this.trackSystem = opts.trackSystem;
 
         this.homePos = opts.homePos.clone();
         this.pasturePos = opts.pasturePos.clone();
-        this.currentPos = opts.homePos.clone();
-        this.targetPos = opts.pasturePos.clone();
 
-        this.state = 'GRAZING';
+        const isNight = (opts.initialPreset === 'night');
+        this.state = isNight ? 'AT_HOME' : 'GRAZING';
+        this.currentPos = isNight ? opts.homePos.clone() : opts.pasturePos.clone();
+        this.targetPos = isNight ? opts.homePos.clone() : opts.pasturePos.clone();
+
         this.isRaining = false;
         this.isDraftWorker = opts.isDraftWorker || false;
         this.speed = 0.85;
@@ -4805,6 +4861,15 @@ class DesiZebuCow {
     }
 
     update(dt) {
+        // Strict Track Envelope Safety Guard: Never allow cattle closer than 6.0m to any rail
+        if (this.trackSystem) {
+            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
+            if (trackDist < 6.0) {
+                this.currentPos.lerp(this.homePos, 0.25);
+                this.root.position.copy(this.currentPos);
+            }
+        }
+
         if (this.isRaining) {
             this.legFL.rotation.x = 0;
             this.legFR.rotation.x = 0;
@@ -4834,6 +4899,20 @@ class DesiZebuCow {
             } else {
                 this.state = (this.state === 'HEADING_HOME') ? 'AT_HOME' : 'GRAZING';
             }
+            return;
+        }
+
+        if (this.state === 'AT_HOME') {
+            // Resting inside/beside the cowshed (গোয়ালঘর)
+            this.grazeTimer += dt;
+            this.legFL.rotation.x = 0;
+            this.legFR.rotation.x = 0;
+            this.legBL.rotation.x = 0;
+            this.legBR.rotation.x = 0;
+            this.tail.rotation.z = Math.sin(this.grazeTimer * 1.8) * 0.22;
+            this.headNeck.rotation.x = 0.08 + Math.sin(this.grazeTimer * 0.7) * 0.05;
+            this.root.position.copy(this.homePos);
+            this.currentPos.copy(this.homePos);
             return;
         }
 
@@ -4955,7 +5034,7 @@ class BengaliStallPerson {
 </script>
 <script>
 // --- js/weather.js ---
-// weather.js - Zero-Shadow-Map Atmospheric Preset Manager (Day, Golden Sunset, Moonlit Starry Night & Monsoon Rain)
+// weather.js - Zero-Shadow-Map Atmospheric Preset Manager (Day, Dawn, Moonlit Starry Night & Monsoon Rain)
 // Features: Smooth 2.5s Color & Fog Transitions (B21), Dynamic Starry Night Sky Dome, Monsoonal Downpour
 
 class WeatherManager {
@@ -4965,7 +5044,7 @@ class WeatherManager {
         this.envManager = envManager;
         this.villageManager = villageManager;
 
-        this.presetOrder = ['day', 'sunset', 'night'];
+        this.presetOrder = ['day', 'dawn', 'night'];
         this.presetIdx = 0;
         this.isRaining = false;
         this.currentPresetKey = 'day';
@@ -5102,8 +5181,11 @@ class WeatherManager {
 
     // Smooth time-of-day preset transition (B21)
     applyPreset(key, immediate = false) {
+        if (key === 'sunset') key = 'dawn';
         const p = GAME_CONFIG.colors.presets[key] || GAME_CONFIG.colors.presets.day;
         this.currentPresetKey = key;
+        const pIdx = this.presetOrder.indexOf(key);
+        if (pIdx !== -1) this.presetIdx = pIdx;
 
         if (immediate) {
             this.scene.background.setHex(p.skyHorizon);
@@ -5838,13 +5920,13 @@ class GameControls {
             this.locomotive.bodyGroup.localToWorld(this._deckLook);
             this.camera.lookAt(this._deckLook);
 
-            const targetFov = this._fitFov(78) + (this.deckFovOffset || 0) + sp * 5.0;
+            const targetFov = this._fitFov(78) + (this.deckFovOffset || 0);
             this._applyFov(targetFov);
             return;
         }
 
-        // Orbit FOV adjusted to prevent tunnel vision on mobile (B9)
-        this._applyFov(this._fitFov(70) + this.trainPhysics.getSpeedRatio() * 4.0);
+        // Orbit FOV adjusted for aspect ratio without dynamic speed distortion
+        this._applyFov(this._fitFov(GAME_CONFIG.camera.fov || 52));
 
         // Mode 2: Trackside Fly-by Camera
         if (this.camModeIdx === 2) {
@@ -5879,9 +5961,7 @@ class GameControls {
             return;
         }
 
-        // Mode 0: Smooth Orbit Chase Camera
-        const sp = this.trainPhysics.getSpeedRatio();
-        this.targetDistance += (sp * 5.0 - (this.targetDistance - GAME_CONFIG.camera.defaultDistance) * 0.1) * dt;
+        // Mode 0: Smooth Orbit Chase Camera (User controls distance, pitch, and yaw manually with zero auto-panning)
         this.distance += (this.targetDistance - this.distance) * Math.min(1.0, dt * 10.0);
 
         const cosP = Math.cos(this.pitch);
@@ -5975,10 +6055,19 @@ class GameControls {
     function applyPerformanceMode(mode) {
         currentPerfMode = mode;
         if (renderer) {
-            const isPhone = (window.devicePixelRatio || 1) >= 1.5;
-            const maxDpr = isPhone ? Math.min(mode.maxDpr, 1.35) : mode.maxDpr;
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+            const dpr = window.devicePixelRatio || 1;
+            const targetDpr = Math.min(dpr, mode.maxDpr);
+            renderer.setPixelRatio(targetDpr);
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        if (camera) {
+            camera.far = mode.lodDistance || 2600;
+            camera.updateProjectionMatrix();
+        }
+        const btnEco = document.getElementById('btn-eco-mode');
+        if (btnEco) {
+            btnEco.querySelector('.hud-val').textContent = mode.label;
+            btnEco.classList.toggle('eco-active', mode.id !== 'high');
         }
     }
 
@@ -6080,11 +6169,18 @@ class GameControls {
                 if (slider) slider.value = Math.round(saved.throttle * 100);
             }
             if (saved.preset && weatherManager) {
-                weatherManager.applyPreset(saved.preset, true);
+                const presetKey = (saved.preset === 'sunset') ? 'dawn' : saved.preset;
+                const p = weatherManager.applyPreset(presetKey, true);
                 const btnDN = document.getElementById('btn-day-night');
                 if (btnDN) {
-                    btnDN.querySelector('.hud-val').textContent = saved.preset.toUpperCase();
+                    btnDN.querySelector('.hud-icon').textContent = p.icon;
+                    btnDN.querySelector('.hud-val').textContent = p.name;
+                    btnDN.classList.toggle('active', presetKey !== 'day');
                 }
+            }
+            if (saved.perf !== undefined) {
+                perfModeIdx = Math.max(0, Math.min(GAME_CONFIG.performance.modes.length - 1, saved.perf));
+                applyPerformanceMode(GAME_CONFIG.performance.modes[perfModeIdx]);
             }
             if (saved.rain && weatherManager) {
                 weatherManager.toggleRain();
@@ -6177,23 +6273,23 @@ class GameControls {
             return;
         }
 
-        // 2. Vsync Frame Pacing & Idle Render Governor (Section 9.2, B10, B16)
+        // 2. Frame Pacing & Quality Tier FPS Limiter (Low: 30, Moderate: 40, Medium: 50, High: 60, Idle: 12)
         const isSettled = villageManager ? villageManager.isSettled() : true;
         const isIdle = (trainPhysics.speed === 0 && !trainPhysics.isRunning && !weatherManager.isRaining && !gameControls.cameraMovedRecently && isSettled);
 
-        // Even vsync tick gating eliminates 16/33ms judder (B16)
-        const modeCadence = isIdle ? 4 : (currentPerfMode.k || 1);
-        if ((tickCount++ % modeCadence) !== 0) {
+        const targetFps = isIdle ? 12 : (currentPerfMode.fpsCap || 40);
+        const minFrameInterval = (1000.0 / targetFps) - 2.0; // 2ms threshold for vsync/rAF timing jitter
+        if (lastFrameTime > 0 && (now - lastFrameTime) < minFrameInterval) {
             return;
         }
 
-        const elapsedMs = now - lastFrameTime;
+        const elapsedMs = lastFrameTime > 0 ? (now - lastFrameTime) : (1000.0 / targetFps);
         lastFrameTime = now;
 
-        // B10 FIX: Allow dt to accommodate lower idle intervals without slowing game time!
+        // Allow dt to accommodate target intervals without slowing game physics!
         let dt = (now - lastSimTime) / 1000.0;
         lastSimTime = now;
-        const maxDt = Math.max(0.05, (1.0 / (isIdle ? 12 : currentPerfMode.fpsCap)) * 1.5);
+        const maxDt = Math.max(0.05, (1.0 / targetFps) * 1.5);
         if (dt > maxDt) dt = maxDt;
 
         // Collect frame time sample for p50/p95 telemetry

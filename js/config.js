@@ -55,14 +55,15 @@ window.GAME_CONFIG = {
         }
     },
 
-    // Performance & Thermal Settings
+    // Performance & Thermal Settings (Low, Moderate, Medium, High Quality Tiers)
     performance: {
         modes: [
-            { id: 'balanced', label: '🌿 Cool 45 FPS', fpsCap: 45, maxDpr: 1.25, k: 1 },
-            { id: 'eco',      label: '⚡ Eco 30 FPS',  fpsCap: 30, maxDpr: 1.0,  k: 2 },
-            { id: 'max',      label: '🚀 60 FPS',      fpsCap: 60, maxDpr: 1.5,  k: 1 }
+            { id: 'low',      name: 'Low',      label: '⚡ Low 30 FPS',      fpsCap: 30, maxDpr: 0.85, lodDistance: 900  },
+            { id: 'moderate', name: 'Moderate', label: '🌿 Moderate 40 FPS', fpsCap: 40, maxDpr: 1.0,  lodDistance: 1500 },
+            { id: 'medium',   name: 'Medium',   label: '✨ Medium 50 FPS',   fpsCap: 50, maxDpr: 1.35, lodDistance: 2100 },
+            { id: 'high',     name: 'High',     label: '🚀 High 60 FPS',     fpsCap: 60, maxDpr: 2.0,  lodDistance: 2600 }
         ],
-        defaultModeIndex: 0
+        defaultModeIndex: 1 // Default to Moderate 40 FPS for balanced performance & battery
     },
 
     // Visual Themes / Lighting (Bangladeshi Simulator Palette - Section 20)
@@ -93,7 +94,7 @@ window.GAME_CONFIG = {
         insulators: 0x5ca38a,
         lampWarm: 0xffd982,
 
-        // Atmospheric Presets
+        // Atmospheric Presets (Day, Dawn, Night)
         presets: {
             day: {
                 name: 'Day',
@@ -114,24 +115,24 @@ window.GAME_CONFIG = {
                 moonVisible: false,
                 windowGlow: 0.08
             },
-            sunset: {
-                name: 'Sunset',
+            dawn: {
+                name: 'Dawn',
                 icon: '🌅',
-                skyTop: 0x2c355c,
-                skyHorizon: 0xe6844e,
-                fogColor: 0xd9875b,
-                fogDensity: 0.00052,
-                sunColor: 0xff944d,
-                sunIntensity: 1.35,
-                sunPos: [-220, 95, 180],
-                hemiSky: 0xffa066,
-                hemiGround: 0x3d2920,
+                skyTop: 0x3a4b7c,
+                skyHorizon: 0xf4a261,
+                fogColor: 0xe8a882,
+                fogDensity: 0.00060,
+                sunColor: 0xffb870,
+                sunIntensity: 1.15,
+                sunPos: [220, 85, 120],
+                hemiSky: 0xfaa57b,
+                hemiGround: 0x3d4f2b,
                 hemiIntensity: 0.68,
-                ambientColor: 0x8f5b4a,
-                ambientIntensity: 0.30,
-                starOpacity: 0.25,
+                ambientColor: 0x7e5f52,
+                ambientIntensity: 0.32,
+                starOpacity: 0.12,
                 moonVisible: false,
-                windowGlow: 0.75
+                windowGlow: 0.40
             },
             night: {
                 name: 'Night',

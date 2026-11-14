@@ -24,19 +24,19 @@
 
     <!-- Top Status & Mode HUD -->
     <header id="top-hud">
-        <button id="btn-day-night" class="hud-btn" title="Cycle Day / Golden Sunset / Moonlit Night (Hotkey: N)">
+        <button id="btn-day-night" class="hud-btn" title="Cycle Day / Dawn / Moonlit Night (Hotkey: N)">
             <span class="hud-icon">☀️</span>
             <span class="hud-val">Day</span>
         </button>
-        <button id="btn-rain" class="hud-btn" title="Toggle Rain Atmosphere (Hotkey: R)">
+        <button id="btn-rain" class="hud-btn" title="Toggle Monsoon Rain Atmosphere (Hotkey: R)">
             <span class="hud-icon">🌧️</span>
             <span class="hud-val">Rain: OFF</span>
         </button>
         <button id="btn-cam-mode" class="hud-btn" title="Switch Camera View (Hotkey: C)">
             <span class="hud-val">🎥 Chase</span>
         </button>
-        <button id="btn-eco-mode" class="hud-btn eco-active" title="Toggle Thermal CPU / FPS Cap">
-            <span class="hud-val">🌿 Cool 45 FPS</span>
+        <button id="btn-eco-mode" class="hud-btn eco-active" title="Toggle Graphics &amp; FPS Quality Tier (Low, Moderate, Medium, High)">
+            <span class="hud-val">🌿 Moderate 40 FPS</span>
         </button>
         <button id="btn-mute" class="hud-btn" title="Mute / Unmute Sound">
             <span class="hud-icon">🔊</span>
@@ -60,6 +60,10 @@
         </div>
         <div class="drawer-content">
             <div class="menu-section">
+                <h4>Graphics &amp; Performance Quality</h4>
+                <div class="menu-hint">Tiers: Low (30 FPS) · Moderate (40 FPS) · Medium (50 FPS) · High (60 FPS)</div>
+            </div>
+            <div class="menu-section">
                 <h4>Controls &amp; Layout</h4>
                 <button id="btn-toggle-left-hand" class="menu-action-btn">
                     <span>Left-Handed Layout</span>
@@ -75,8 +79,8 @@
                 </button>
             </div>
             <div class="menu-section">
-                <h4>Camera Modes</h4>
-                <div class="menu-hint">C: Cycle View · Double-tap in Deck POV to center</div>
+                <h4>Camera Modes &amp; Controls</h4>
+                <div class="menu-hint">Drag screen: Manual pan &amp; orbit angle · Pinch / Wheel / +/- : Zoom · C: Cycle View · 🎯: Recenter</div>
             </div>
             <div class="menu-section">
                 <h4>Keyboard Shortcuts</h4>
@@ -85,7 +89,7 @@
                     <div><kbd>H</kbd> Train Horn</div>
                     <div><kbd>L</kbd> Headlights</div>
                     <div><kbd>C</kbd> Camera Mode</div>
-                    <div><kbd>N</kbd> Day / Sunset / Night</div>
+                    <div><kbd>N</kbd> Day / Dawn / Night</div>
                     <div><kbd>R</kbd> Rain Atmosphere</div>
                     <div><kbd>+/-</kbd> Zoom Distance / FOV</div>
                 </div>

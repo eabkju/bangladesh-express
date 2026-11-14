@@ -66,10 +66,32 @@ An ultra-lightweight, visually rich 3D railway simulation game built with **Thre
 - **Bilingual Station Board**: Inscribed with **"গ্রিনল্যান্ডস জংশন / GREENLANDS JUNCTION"**.
 - **Clearance Assert Helper**: Dev-time collision sweeps verifying all trackside structures maintain safe clearance >= 1.6m.
 
-### 7. Pacing, Persistence & Offline PWA Cache
-- **Vsync Frame Pacing**: Smooth cadence frame limiter eliminating 16/33ms stutter.
-- **State Persistence (`trainGame.v1`)**: Saves track progress, throttle, camera view, time of day, rain, and light settings to LocalStorage, automatically resuming on reload.
-- **Offline PWA Service Worker (`sw.js`)**: Cache-first asset delivery for near-instant reload times.
+### 8. Graphics Quality & FPS Tiers
+- **Four Explicit Quality Tiers**:
+  - **⚡ Low (30 FPS)**: DPR capped to 0.85, LOD render distance 900m—maximum battery saving for low-end mobile devices.
+  - **🌿 Moderate (40 FPS)**: DPR 1.0, LOD distance 1500m—balanced silky performance with low thermal profile.
+  - **✨ Medium (50 FPS)**: DPR 1.35, LOD distance 2100m—crisp rendering for modern smartphones and tablets.
+  - **🚀 High (60 FPS)**: Native display DPR (up to 2.0), full 2600m LOD draw distance—maximum visual fidelity.
+- **Accurate Hardware Frame Pacing**: Timing-based interval limiter ensures steady pacing without judder across 60Hz, 90Hz, and 120Hz screens.
+
+### 9. Day, Dawn & Night Modes + Rain Atmosphere
+- **Three Atmospheric Presets**:
+  - **☀️ Day**: Bright tropical daylight with crisp visibility and blue sky.
+  - **🌅 Dawn**: Early morning twilight with low eastern sun, soft golden-rose sky, and warm morning mist.
+  - **🌙 Night**: Moonlit night with full moon, 600 twinkling stars, and glowing house lanterns.
+- **Monsoon Rain Mode (🌧️)**: Toggleable downpour with overcast sky, falling raindrops, farmer umbrellas, working cab windshield wipers, and procedural rain sound.
+
+### 10. Living Village Diurnal Routine & Strict Track Safety
+- **Realistic Day/Night Cycle**:
+  - **At Night**: Farmers packing up their tools and walking back from the paddy fields to their homestead courtyards (`HEADING_HOME` → `AT_HOME`), resting on verandas. Cattle leaving pastures and heading to the shelter of the cowsheds (`HEADING_HOME` → `AT_HOME`).
+  - **At Day & Dawn**: Farmers emerging from the houses with hoes to cultivate the fields (`HEADING_FARM` → `FARMING`), cattle coming out to graze and plough furrows (`HEADING_PASTURE` → `GRAZING`).
+- **Guaranteed Zero Track Encroachment**:
+  - All homesteads, huts, cowsheds, and paddy fields placed at safe distances (> 23m–65m) outside the train clearance envelope.
+  - Invariant safety guards in the AI loop preventing any entity from approaching closer than 6.0m to the rails.
+
+### 11. Locked Manual Camera Orbit (No Auto-Panning)
+- **Eliminated Speed-Based Auto-Zoom**: Removed dynamic distance and FOV stretching when accelerating.
+- **Zero Drift or Auto-Reset**: Camera strictly maintains user-selected yaw (orbit angle), pitch (elevation), and pinch/wheel zoom distance. Recenter (🎯) available anytime.
 
 ---
 

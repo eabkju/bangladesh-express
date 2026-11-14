@@ -164,8 +164,8 @@ class VillageManager {
             },
             {
                 name: "দক্ষিণপাড়া বাড়ি (South River Loop)",
-                pos: new THREE.Vector3(230, 0, 1080),
-                rotY: -1.4,
+                pos: new THREE.Vector3(240, 0, 950), // Safely inside loop, > 55m from train line
+                rotY: -2.2,
                 paddyType: 'golden'
             },
             {
@@ -186,42 +186,62 @@ class VillageManager {
             const hc = homesteadConfigs[i];
             const bari = new BengaliHomestead(this.scene, this.materials, hc);
             this.farmsteads.push(bari);
+            bari.group.updateMatrixWorld(true);
+
+            // Compute safe world coordinates via localToWorld (ensures > 23m track clearance)
+            const f1Home = bari.group.localToWorld(new THREE.Vector3(-4, 0, 1));
+            const f1Work = bari.group.localToWorld(new THREE.Vector3(16, 0, -2));
+            const f2Home = bari.group.localToWorld(new THREE.Vector3(4, 0, -2));
+            const f2Work = bari.group.localToWorld(new THREE.Vector3(20, 0, 2));
+
+            const cow1Home = bari.group.localToWorld(new THREE.Vector3(-7, 0, 5.5));
+            const cow1Past = bari.group.localToWorld(new THREE.Vector3(15, 0, -6));
+            const cow2Home = bari.group.localToWorld(new THREE.Vector3(-5.5, 0, 5.5));
+            const cow2Past = bari.group.localToWorld(new THREE.Vector3(19, 0, -6));
 
             // Add Working Farmers wearing Lungi, Gamcha & Bamboo Hat (Section 22)
             const f1 = new BengaliFarmer(this.scene, this.materials, {
                 id: `farmer_${i}_1`,
-                homePos: new THREE.Vector3(hc.pos.x - 6, 0, hc.pos.z + 4),
-                workPos: new THREE.Vector3(hc.pos.x + 16, 0, hc.pos.z + 12),
+                homePos: f1Home,
+                workPos: f1Work,
                 lungiMat: i % 2 === 0 ? this.materials.lungiMaroonMat : this.materials.lungiNavyMat,
                 hasHat: true,
-                speed: 1.15 + (i * 0.08)
+                speed: 1.15 + (i * 0.08),
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
 
             const f2 = new BengaliFarmer(this.scene, this.materials, {
                 id: `farmer_${i}_2`,
-                homePos: new THREE.Vector3(hc.pos.x + 4, 0, hc.pos.z - 8),
-                workPos: new THREE.Vector3(hc.pos.x + 22, 0, hc.pos.z - 6),
+                homePos: f2Home,
+                workPos: f2Work,
                 lungiMat: this.materials.lungiGreenMat,
                 hasHat: false,
-                speed: 1.25
+                speed: 1.25,
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
             this.farmers.push(f1, f2);
 
             // Add Desi Zebu Cattle (হাঁটু ও পিঠের কুঁজযুক্ত দেশি গরু - Section 23)
             const cow1 = new DesiZebuCow(this.scene, this.materials, {
                 id: `cow_${i}_1`,
-                homePos: new THREE.Vector3(hc.pos.x + 8, 0, hc.pos.z + 6),
-                pasturePos: new THREE.Vector3(hc.pos.x + 18, 0, hc.pos.z + 18),
+                homePos: cow1Home,
+                pasturePos: cow1Past,
                 isWhite: (i % 2 === 0),
-                isDraftWorker: (i === 0 || i === 2) // Plough team bullock
+                isDraftWorker: (i === 0 || i === 2), // Plough team bullock
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
 
             const cow2 = new DesiZebuCow(this.scene, this.materials, {
                 id: `cow_${i}_2`,
-                homePos: new THREE.Vector3(hc.pos.x + 11, 0, hc.pos.z + 6),
-                pasturePos: new THREE.Vector3(hc.pos.x + 24, 0, hc.pos.z + 15),
+                homePos: cow2Home,
+                pasturePos: cow2Past,
                 isWhite: (i % 2 !== 0),
-                isDraftWorker: false
+                isDraftWorker: false,
+                trackSystem: this.trackSystem,
+                initialPreset: this.currentTimePreset
             });
             this.cows.push(cow1, cow2);
         }
@@ -392,12 +412,12 @@ class VillageManager {
 
     onTimeOfDayChange(presetKey) {
         this.currentTimePreset = presetKey;
-        const isNightOrSunset = (presetKey === 'night' || presetKey === 'sunset');
+        const isNight = (presetKey === 'night');
         for (let i = 0; i < this.farmers.length; i++) {
-            this.farmers[i].setTargetMode(isNightOrSunset ? 'HEADING_HOME' : 'HEADING_FARM');
+            this.farmers[i].setTargetMode(isNight ? 'HEADING_HOME' : 'HEADING_FARM');
         }
         for (let i = 0; i < this.cows.length; i++) {
-            this.cows[i].setTargetMode(isNightOrSunset ? 'HEADING_HOME' : 'HEADING_PASTURE');
+            this.cows[i].setTargetMode(isNight ? 'HEADING_HOME' : 'HEADING_PASTURE');
         }
     }
 
@@ -798,13 +818,16 @@ class BengaliFarmer {
         this.scene = scene;
         this.materials = materials;
         this.opts = opts;
+        this.trackSystem = opts.trackSystem;
 
         this.homePos = opts.homePos.clone();
         this.workPos = opts.workPos.clone();
-        this.currentPos = opts.homePos.clone();
-        this.targetPos = opts.workPos.clone();
 
-        this.state = 'FARMING';
+        const isNight = (opts.initialPreset === 'night');
+        this.state = isNight ? 'AT_HOME' : 'FARMING';
+        this.currentPos = isNight ? opts.homePos.clone() : opts.workPos.clone();
+        this.targetPos = isNight ? opts.homePos.clone() : opts.workPos.clone();
+
         this.isRaining = false;
         this.speed = opts.speed || 1.2;
         this.walkPhase = Math.random() * Math.PI * 2;
@@ -813,6 +836,7 @@ class BengaliFarmer {
         this._dir = new THREE.Vector3();
 
         this._buildMesh(opts);
+        if (isNight && this.toolGroup) this.toolGroup.visible = false;
         this.scene.add(this.root);
     }
 
@@ -915,6 +939,15 @@ class BengaliFarmer {
     }
 
     update(dt) {
+        // Strict Track Envelope Safety Guard: Never allow farmer closer than 6.0m to any rail
+        if (this.trackSystem) {
+            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
+            if (trackDist < 6.0) {
+                this.currentPos.lerp(this.homePos, 0.25);
+                this.root.position.copy(this.currentPos);
+            }
+        }
+
         // B18 FIX: Properly reset torso & head rotation so farmer does not freeze bent over!
         if (this.isRaining) {
             this.torsoMesh.rotation.x = 0;
@@ -952,11 +985,26 @@ class BengaliFarmer {
             } else {
                 if (this.state === 'HEADING_HOME') {
                     this.state = 'AT_HOME';
+                    if (this.toolGroup) this.toolGroup.visible = false;
                 } else {
                     this.state = 'FARMING';
                     if (this.toolGroup) this.toolGroup.visible = true;
                 }
             }
+            return;
+        }
+
+        if (this.state === 'AT_HOME') {
+            // Resting at home / courtyard in evening and night
+            this.idleTimer += dt * 1.5;
+            const breath = Math.sin(this.idleTimer) * 0.04;
+            this.torsoMesh.rotation.x = breath;
+            this.headGroup.rotation.x = breath * 0.5;
+            this.leftLeg.rotation.x = 0;
+            this.rightLeg.rotation.x = 0;
+            this.leftArm.rotation.x = 0;
+            this.rightArm.rotation.x = 0;
+            if (this.toolGroup) this.toolGroup.visible = false;
             return;
         }
 
@@ -981,13 +1029,16 @@ class DesiZebuCow {
         this.scene = scene;
         this.materials = materials;
         this.opts = opts;
+        this.trackSystem = opts.trackSystem;
 
         this.homePos = opts.homePos.clone();
         this.pasturePos = opts.pasturePos.clone();
-        this.currentPos = opts.homePos.clone();
-        this.targetPos = opts.pasturePos.clone();
 
-        this.state = 'GRAZING';
+        const isNight = (opts.initialPreset === 'night');
+        this.state = isNight ? 'AT_HOME' : 'GRAZING';
+        this.currentPos = isNight ? opts.homePos.clone() : opts.pasturePos.clone();
+        this.targetPos = isNight ? opts.homePos.clone() : opts.pasturePos.clone();
+
         this.isRaining = false;
         this.isDraftWorker = opts.isDraftWorker || false;
         this.speed = 0.85;
@@ -1086,6 +1137,15 @@ class DesiZebuCow {
     }
 
     update(dt) {
+        // Strict Track Envelope Safety Guard: Never allow cattle closer than 6.0m to any rail
+        if (this.trackSystem) {
+            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
+            if (trackDist < 6.0) {
+                this.currentPos.lerp(this.homePos, 0.25);
+                this.root.position.copy(this.currentPos);
+            }
+        }
+
         if (this.isRaining) {
             this.legFL.rotation.x = 0;
             this.legFR.rotation.x = 0;
@@ -1115,6 +1175,20 @@ class DesiZebuCow {
             } else {
                 this.state = (this.state === 'HEADING_HOME') ? 'AT_HOME' : 'GRAZING';
             }
+            return;
+        }
+
+        if (this.state === 'AT_HOME') {
+            // Resting inside/beside the cowshed (গোয়ালঘর)
+            this.grazeTimer += dt;
+            this.legFL.rotation.x = 0;
+            this.legFR.rotation.x = 0;
+            this.legBL.rotation.x = 0;
+            this.legBR.rotation.x = 0;
+            this.tail.rotation.z = Math.sin(this.grazeTimer * 1.8) * 0.22;
+            this.headNeck.rotation.x = 0.08 + Math.sin(this.grazeTimer * 0.7) * 0.05;
+            this.root.position.copy(this.homePos);
+            this.currentPos.copy(this.homePos);
             return;
         }
 

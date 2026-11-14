@@ -69,10 +69,19 @@
     function applyPerformanceMode(mode) {
         currentPerfMode = mode;
         if (renderer) {
-            const isPhone = (window.devicePixelRatio || 1) >= 1.5;
-            const maxDpr = isPhone ? Math.min(mode.maxDpr, 1.35) : mode.maxDpr;
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+            const dpr = window.devicePixelRatio || 1;
+            const targetDpr = Math.min(dpr, mode.maxDpr);
+            renderer.setPixelRatio(targetDpr);
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        if (camera) {
+            camera.far = mode.lodDistance || 2600;
+            camera.updateProjectionMatrix();
+        }
+        const btnEco = document.getElementById('btn-eco-mode');
+        if (btnEco) {
+            btnEco.querySelector('.hud-val').textContent = mode.label;
+            btnEco.classList.toggle('eco-active', mode.id !== 'high');
         }
     }
 
@@ -174,11 +183,18 @@
                 if (slider) slider.value = Math.round(saved.throttle * 100);
             }
             if (saved.preset && weatherManager) {
-                weatherManager.applyPreset(saved.preset, true);
+                const presetKey = (saved.preset === 'sunset') ? 'dawn' : saved.preset;
+                const p = weatherManager.applyPreset(presetKey, true);
                 const btnDN = document.getElementById('btn-day-night');
                 if (btnDN) {
-                    btnDN.querySelector('.hud-val').textContent = saved.preset.toUpperCase();
+                    btnDN.querySelector('.hud-icon').textContent = p.icon;
+                    btnDN.querySelector('.hud-val').textContent = p.name;
+                    btnDN.classList.toggle('active', presetKey !== 'day');
                 }
+            }
+            if (saved.perf !== undefined) {
+                perfModeIdx = Math.max(0, Math.min(GAME_CONFIG.performance.modes.length - 1, saved.perf));
+                applyPerformanceMode(GAME_CONFIG.performance.modes[perfModeIdx]);
             }
             if (saved.rain && weatherManager) {
                 weatherManager.toggleRain();
@@ -271,23 +287,23 @@
             return;
         }
 
-        // 2. Vsync Frame Pacing & Idle Render Governor (Section 9.2, B10, B16)
+        // 2. Frame Pacing & Quality Tier FPS Limiter (Low: 30, Moderate: 40, Medium: 50, High: 60, Idle: 12)
         const isSettled = villageManager ? villageManager.isSettled() : true;
         const isIdle = (trainPhysics.speed === 0 && !trainPhysics.isRunning && !weatherManager.isRaining && !gameControls.cameraMovedRecently && isSettled);
 
-        // Even vsync tick gating eliminates 16/33ms judder (B16)
-        const modeCadence = isIdle ? 4 : (currentPerfMode.k || 1);
-        if ((tickCount++ % modeCadence) !== 0) {
+        const targetFps = isIdle ? 12 : (currentPerfMode.fpsCap || 40);
+        const minFrameInterval = (1000.0 / targetFps) - 2.0; // 2ms threshold for vsync/rAF timing jitter
+        if (lastFrameTime > 0 && (now - lastFrameTime) < minFrameInterval) {
             return;
         }
 
-        const elapsedMs = now - lastFrameTime;
+        const elapsedMs = lastFrameTime > 0 ? (now - lastFrameTime) : (1000.0 / targetFps);
         lastFrameTime = now;
 
-        // B10 FIX: Allow dt to accommodate lower idle intervals without slowing game time!
+        // Allow dt to accommodate target intervals without slowing game physics!
         let dt = (now - lastSimTime) / 1000.0;
         lastSimTime = now;
-        const maxDt = Math.max(0.05, (1.0 / (isIdle ? 12 : currentPerfMode.fpsCap)) * 1.5);
+        const maxDt = Math.max(0.05, (1.0 / targetFps) * 1.5);
         if (dt > maxDt) dt = maxDt;
 
         // Collect frame time sample for p50/p95 telemetry

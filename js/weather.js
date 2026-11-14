@@ -1,4 +1,4 @@
-// weather.js - Zero-Shadow-Map Atmospheric Preset Manager (Day, Golden Sunset, Moonlit Starry Night & Monsoon Rain)
+// weather.js - Zero-Shadow-Map Atmospheric Preset Manager (Day, Dawn, Moonlit Starry Night & Monsoon Rain)
 // Features: Smooth 2.5s Color & Fog Transitions (B21), Dynamic Starry Night Sky Dome, Monsoonal Downpour
 
 class WeatherManager {
@@ -8,7 +8,7 @@ class WeatherManager {
         this.envManager = envManager;
         this.villageManager = villageManager;
 
-        this.presetOrder = ['day', 'sunset', 'night'];
+        this.presetOrder = ['day', 'dawn', 'night'];
         this.presetIdx = 0;
         this.isRaining = false;
         this.currentPresetKey = 'day';
@@ -145,8 +145,11 @@ class WeatherManager {
 
     // Smooth time-of-day preset transition (B21)
     applyPreset(key, immediate = false) {
+        if (key === 'sunset') key = 'dawn';
         const p = GAME_CONFIG.colors.presets[key] || GAME_CONFIG.colors.presets.day;
         this.currentPresetKey = key;
+        const pIdx = this.presetOrder.indexOf(key);
+        if (pIdx !== -1) this.presetIdx = pIdx;
 
         if (immediate) {
             this.scene.background.setHex(p.skyHorizon);
