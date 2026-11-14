@@ -84,6 +84,22 @@ class GameControls {
             this.pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
             this.lastPinchDist = 0;
             this.cameraMovedRecently = true;
+
+            // Dismiss floating panels when interacting with the 3D canvas
+            const wp = document.getElementById('weather-panel');
+            if (wp && wp.classList.contains('open')) {
+                wp.classList.remove('open');
+                wp.setAttribute('aria-hidden', 'true');
+                const btnW = document.getElementById('btn-weather-fab');
+                if (btnW) btnW.classList.remove('panel-open');
+            }
+            const gp = document.getElementById('graphics-panel');
+            if (gp && gp.classList.contains('open')) {
+                gp.classList.remove('open');
+                gp.setAttribute('aria-hidden', 'true');
+                const btnG = document.getElementById('btn-graphics-fab');
+                if (btnG) btnG.classList.remove('panel-open');
+            }
         });
 
         this.domElement.addEventListener('pointermove', (e) => {
@@ -527,6 +543,25 @@ class GameControls {
                 this.toggleLights();
             } else if (e.code === 'KeyC') {
                 this.cycleCameraMode();
+            } else if (e.code === 'KeyQ') {
+                if (this.onPerfModeChange) {
+                    this.onPerfModeChange();
+                    this.cameraMovedRecently = true;
+                }
+            } else if (e.code === 'KeyW' || e.code === 'ArrowUp') {
+                const slider = document.getElementById('throttle-slider');
+                if (slider) {
+                    slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
+                    this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                    this.cameraMovedRecently = true;
+                }
+            } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+                const slider = document.getElementById('throttle-slider');
+                if (slider) {
+                    slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
+                    this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                    this.cameraMovedRecently = true;
+                }
             } else if (e.code === 'KeyR') {
                 const btnRainToggle = document.getElementById('btn-rain-toggle');
                 if (btnRainToggle) btnRainToggle.click();

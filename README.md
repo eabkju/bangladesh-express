@@ -93,6 +93,27 @@ An ultra-lightweight, visually rich 3D railway simulation game built with **Thre
 - **Eliminated Speed-Based Auto-Zoom**: Removed dynamic distance and FOV stretching when accelerating.
 - **Zero Drift or Auto-Reset**: Camera strictly maintains user-selected yaw (orbit angle), pitch (elevation), and pinch/wheel zoom distance. Recenter (🎯) available anytime.
 
+### 12. Redesigned Screen Controls, Weather FAB & Graphics Quality Panels
+- **Minimalist Top HUD**:
+  - Clean layout containing only essential elements: `🔊 Mute`, `Speedometer (km/h)`, `🎥 Camera Mode`, and `☰ Menu`.
+- **Floating Action Buttons (FAB Column)**:
+  - **⛅ Weather FAB**: Slides out the Weather Panel with direct selection for **☀️ Day**, **🌅 Dawn**, and **🌙 Night**, plus an interactive **🌧️ Rain ON/OFF** toggle.
+  - **🎨 Graphics FAB**: Slides out a 2×2 grid of quality tier cards (**🐢 Low 30 FPS**, **🌿 Moderate 40 FPS**, **✨ Medium 50 FPS**, **🔥 High 60 FPS**) for instant one-tap switching.
+  - Auto-dismiss on canvas drag/touch or outside click.
+- **Integrated Driver Dock Camera Controls**:
+  - Consolidated **➕ Zoom In**, **➖ Zoom Out**, and **🎯 Recenter** buttons directly into a dedicated bottom row within the locomotive dock.
+  - Full-range throttle slider (`0%` to `100%`) allowing complete halt to maximum speed.
+- **Complete Keyboard Navigation**:
+  - `Space`: Start / Stop throttle
+  - `W` / `S` or `↑` / `↓`: Adjust cruise throttle in 5% increments
+  - `H`: Air horn (press and hold)
+  - `L`: Cab and coach headlights
+  - `C`: Switch camera view (Chase, Deck POV, Trackside, Drone)
+  - `Q`: Cycle graphics & FPS quality tier
+  - `N`: Cycle Day / Dawn / Night sky preset
+  - `R`: Toggle monsoon rain atmosphere
+  - `+` / `-`: Camera zoom / Deck FOV offset
+
 ---
 
 ## Standalone Build Script
