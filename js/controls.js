@@ -309,16 +309,133 @@ class GameControls {
             btnCamMode.addEventListener('click', () => this.cycleCameraMode());
         }
 
-        // 8. CPU Eco / FPS Mode Button
+        // 8. CPU Eco / FPS Mode Button (legacy cycle - kept for keyboard Q shortcut compatibility)
         const btnEco = document.getElementById('btn-eco-mode');
         if (btnEco && this.onPerfModeChange) {
             btnEco.addEventListener('click', () => {
                 const mode = this.onPerfModeChange();
-                btnEco.querySelector('.hud-val').textContent = mode.label;
-                btnEco.classList.toggle('eco-active', mode.id !== 'max');
                 this.cameraMovedRecently = true;
             });
         }
+
+        // 8b. Weather FAB toggle
+        const btnWeatherFab = document.getElementById('btn-weather-fab');
+        const weatherPanel = document.getElementById('weather-panel');
+        const graphicsPanel = document.getElementById('graphics-panel');
+        const btnGraphicsFab = document.getElementById('btn-graphics-fab');
+
+        const closeWeather = () => {
+            if (weatherPanel) { weatherPanel.classList.remove('open'); weatherPanel.setAttribute('aria-hidden','true'); }
+            if (btnWeatherFab) btnWeatherFab.classList.remove('panel-open');
+        };
+        const closeGraphics = () => {
+            if (graphicsPanel) { graphicsPanel.classList.remove('open'); graphicsPanel.setAttribute('aria-hidden','true'); }
+            if (btnGraphicsFab) btnGraphicsFab.classList.remove('panel-open');
+        };
+
+        if (btnWeatherFab && weatherPanel) {
+            btnWeatherFab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = weatherPanel.classList.contains('open');
+                closeGraphics();
+                if (isOpen) {
+                    closeWeather();
+                } else {
+                    weatherPanel.classList.add('open');
+                    weatherPanel.setAttribute('aria-hidden','false');
+                    btnWeatherFab.classList.add('panel-open');
+                }
+            });
+        }
+
+        if (btnGraphicsFab && graphicsPanel) {
+            btnGraphicsFab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = graphicsPanel.classList.contains('open');
+                closeWeather();
+                if (isOpen) {
+                    closeGraphics();
+                } else {
+                    graphicsPanel.classList.add('open');
+                    graphicsPanel.setAttribute('aria-hidden','false');
+                    btnGraphicsFab.classList.add('panel-open');
+                }
+            });
+        }
+
+        // Close panels when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#weather-panel') && !e.target.closest('#btn-weather-fab')) closeWeather();
+            if (!e.target.closest('#graphics-panel') && !e.target.closest('#btn-graphics-fab')) closeGraphics();
+        });
+
+        // 8c. Weather day/dawn/night buttons in the weather panel
+        const syncWeatherBtns = (presetKey) => {
+            ['day','dawn','night'].forEach(k => {
+                const b = document.getElementById('btn-w-' + k);
+                if (b) b.classList.toggle('active', k === presetKey);
+            });
+        };
+
+        ['day','dawn','night'].forEach(presetKey => {
+            const btn = document.getElementById('btn-w-' + presetKey);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    const p = this.weatherManager.applyPreset(presetKey, false);
+                    syncWeatherBtns(presetKey);
+                    this.cameraMovedRecently = true;
+                });
+            }
+        });
+
+        // 8d. Rain toggle in weather panel
+        const btnRainToggle = document.getElementById('btn-rain-toggle');
+        if (btnRainToggle) {
+            const syncRain = (raining) => {
+                btnRainToggle.textContent = raining ? 'ON' : 'OFF';
+                btnRainToggle.classList.toggle('on', raining);
+                btnRainToggle.dataset.on = raining ? 'true' : 'false';
+            };
+            btnRainToggle.addEventListener('click', () => {
+                const raining = this.weatherManager.toggleRain();
+                syncRain(raining);
+                if (this.audioManager) this.audioManager.setRainSound(raining);
+                this.cameraMovedRecently = true;
+            });
+        }
+
+        // 8e. Graphics quality cards in the side panel AND menu drawer
+        const syncQualityCards = (tierId) => {
+            ['low','moderate','medium','high'].forEach(t => {
+                const c = document.getElementById('btn-q-' + t);
+                if (c) c.classList.toggle('active', t === tierId);
+                const m = document.getElementById('btn-mq-' + t);
+                if (m) m.classList.toggle('active', t === tierId);
+            });
+        };
+
+        ['low','moderate','medium','high'].forEach(tier => {
+            const card = document.getElementById('btn-q-' + tier);
+            if (card) {
+                card.addEventListener('click', () => {
+                    if (window.setPerformanceModeById) {
+                        window.setPerformanceModeById(tier);
+                        syncQualityCards(tier);
+                    }
+                    this.cameraMovedRecently = true;
+                });
+            }
+            const menuCard = document.getElementById('btn-mq-' + tier);
+            if (menuCard) {
+                menuCard.addEventListener('click', () => {
+                    if (window.setPerformanceModeById) {
+                        window.setPerformanceModeById(tier);
+                        syncQualityCards(tier);
+                    }
+                    this.cameraMovedRecently = true;
+                });
+            }
+        });
 
         // 9. Audio Mute Button
         const btnMute = document.getElementById('btn-mute');
@@ -411,11 +528,22 @@ class GameControls {
             } else if (e.code === 'KeyC') {
                 this.cycleCameraMode();
             } else if (e.code === 'KeyR') {
-                const btnRain = document.getElementById('btn-rain');
-                if (btnRain) btnRain.click();
+                const btnRainToggle = document.getElementById('btn-rain-toggle');
+                if (btnRainToggle) btnRainToggle.click();
+                else if (this.weatherManager) {
+                    const raining = this.weatherManager.toggleRain();
+                    if (this.audioManager) this.audioManager.setRainSound(raining);
+                }
             } else if (e.code === 'KeyN') {
-                const btnDayNight = document.getElementById('btn-day-night');
-                if (btnDayNight) btnDayNight.click();
+                const preset = this.weatherManager.cycleTimeOfDay();
+                const syncWeatherBtns = (presetKey) => {
+                    ['day','dawn','night'].forEach(k => {
+                        const b = document.getElementById('btn-w-' + k);
+                        if (b) b.classList.toggle('active', k === presetKey);
+                    });
+                };
+                syncWeatherBtns(preset.id || preset.name.toLowerCase());
+                this.cameraMovedRecently = true;
             } else if (e.key === '+' || e.key === '=') {
                 this.zoom(0.8);
             } else if (e.key === '-' || e.key === '_') {

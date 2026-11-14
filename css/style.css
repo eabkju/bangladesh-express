@@ -229,6 +229,7 @@ canvas {
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
   padding: 12px 18px;
@@ -442,10 +443,6 @@ canvas {
    ========================================================= */
 @media (max-width: 680px) {
   /* Hide secondary top-row buttons into Menu on narrow phones */
-  #btn-day-night,
-  #btn-rain,
-  #btn-eco-mode,
-  #btn-mute,
   .hud-divider {
     display: none;
   }
@@ -521,16 +518,7 @@ canvas {
   }
 
   #left-camera-hud {
-    left: calc(8px + env(safe-area-inset-left, 0px));
-    gap: 8px;
-    padding: 6px;
-  }
-
-  .cam-btn {
-    width: 38px;
-    height: 38px;
-    font-size: 16px;
-    touch-action: manipulation;
+    display: none;
   }
 
   #perf-pill {
@@ -580,8 +568,7 @@ canvas {
   }
 
   #left-camera-hud {
-    top: 50%;
-    transform: translateY(-50%);
+    display: none;
   }
 }
 
@@ -741,4 +728,319 @@ body.deck-view #canvas-container::after {
   pointer-events: none;
   background: radial-gradient(ellipse at 50% 55%, transparent 58%, rgba(0, 0, 0, 0.38) 100%),
               linear-gradient(to bottom, rgba(0, 0, 0, 0.18), transparent 14%);
+}
+
+/* =========================================================
+   FAB COLUMN (Weather & Graphics Floating Action Buttons)
+   ========================================================= */
+#fab-col {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.fab-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.38);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+}
+
+.fab-btn:hover {
+  background: var(--bg-glass-hover);
+  border-color: rgba(255,255,255,0.3);
+  transform: scale(1.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.fab-btn:active {
+  transform: scale(0.94);
+}
+
+.fab-btn.panel-open {
+  background: rgba(56, 189, 248, 0.26);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 16px rgba(56,189,248,0.4);
+}
+
+/* =========================================================
+   SIDE PANELS (Weather & Graphics slide-in panels)
+   ========================================================= */
+.side-panel {
+  position: absolute;
+  right: 80px;
+  top: 50%;
+  transform: translateY(-50%) translateX(20px);
+  z-index: 11;
+  background: rgba(10, 18, 30, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  padding: 14px 16px;
+  min-width: 220px;
+  box-shadow: -6px 0 28px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.side-panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+.panel-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+/* Weather Panel Row */
+.weather-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.wrow-btn {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.wrow-btn:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+.wrow-btn.active {
+  background: rgba(56, 189, 248, 0.26);
+  border-color: var(--accent-cyan);
+  color: #e0f2fe;
+}
+
+/* Rain Row */
+.rain-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  border-top: 1px solid var(--border-glass);
+  margin-top: 4px;
+}
+
+.rain-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rain-toggle {
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.rain-toggle.on {
+  background: rgba(56, 189, 248, 0.26);
+  border-color: var(--accent-cyan);
+  color: #e0f2fe;
+}
+
+/* Graphics Quality Grid */
+.quality-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quality-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 2px;
+}
+
+.quality-card:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.28);
+}
+
+.quality-card.active {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 12px rgba(16,185,129,0.3);
+}
+
+.q-icon {
+  font-size: 18px;
+}
+
+.q-name {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.q-fps {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   CAMERA BUTTONS ROW in Bottom Dock
+   ========================================================= */
+.dock-cam-row {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-glass);
+  width: 100%;
+  justify-content: center;
+}
+
+.cam-dock-btn {
+  width: 44px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text-primary);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.cam-dock-btn:hover {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.28);
+  transform: scale(1.06);
+}
+
+.cam-dock-btn:active {
+  transform: scale(0.93);
+  background: rgba(56,189,248,0.28);
+}
+
+/* =========================================================
+   MENU DRAWER — Quality Tile Buttons
+   ========================================================= */
+.menu-quality-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.menu-quality-btn {
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.4;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.menu-quality-btn small {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: block;
+}
+
+.menu-quality-btn.active {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: var(--accent-emerald);
+}
+
+.menu-quality-btn:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+/* =========================================================
+   RESPONSIVE: FAB panel adjustments for mobile
+   ========================================================= */
+@media (max-width: 680px) {
+  #fab-col {
+    right: 10px;
+    top: auto;
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    transform: none;
+    flex-direction: column;
+  }
+
+  .fab-btn {
+    width: 46px;
+    height: 46px;
+    font-size: 20px;
+  }
+
+  .side-panel {
+    right: 66px;
+    top: auto;
+    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(16px);
+    min-width: 190px;
+  }
+
+  .side-panel.open {
+    transform: translateX(0);
+  }
+
+  .dock-cam-row {
+    gap: 6px;
+  }
+
+  .cam-dock-btn {
+    width: 40px;
+    height: 36px;
+    font-size: 14px;
+  }
 }

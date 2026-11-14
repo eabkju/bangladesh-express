@@ -24,20 +24,6 @@
 
     <!-- Top Status & Mode HUD -->
     <header id="top-hud">
-        <button id="btn-day-night" class="hud-btn" title="Cycle Day / Dawn / Moonlit Night (Hotkey: N)">
-            <span class="hud-icon">☀️</span>
-            <span class="hud-val">Day</span>
-        </button>
-        <button id="btn-rain" class="hud-btn" title="Toggle Monsoon Rain Atmosphere (Hotkey: R)">
-            <span class="hud-icon">🌧️</span>
-            <span class="hud-val">Rain: OFF</span>
-        </button>
-        <button id="btn-cam-mode" class="hud-btn" title="Switch Camera View (Hotkey: C)">
-            <span class="hud-val">🎥 Chase</span>
-        </button>
-        <button id="btn-eco-mode" class="hud-btn eco-active" title="Toggle Graphics &amp; FPS Quality Tier (Low, Moderate, Medium, High)">
-            <span class="hud-val">🌿 Moderate 40 FPS</span>
-        </button>
         <button id="btn-mute" class="hud-btn" title="Mute / Unmute Sound">
             <span class="hud-icon">🔊</span>
         </button>
@@ -46,6 +32,9 @@
             <span id="speed-gauge-val">0</span>
             <span id="speed-gauge-unit">km/h</span>
         </div>
+        <button id="btn-cam-mode" class="hud-btn" title="Switch Camera View (Hotkey: C)">
+            <span class="hud-val">🎥 Chase</span>
+        </button>
         <button id="btn-menu" class="hud-btn hud-menu-btn" title="Open Settings &amp; Actions Menu">
             <span class="hud-icon">☰</span>
             <span class="hud-val">Menu</span>
@@ -61,7 +50,12 @@
         <div class="drawer-content">
             <div class="menu-section">
                 <h4>Graphics &amp; Performance Quality</h4>
-                <div class="menu-hint">Tiers: Low (30 FPS) · Moderate (40 FPS) · Medium (50 FPS) · High (60 FPS)</div>
+                <div class="menu-quality-row">
+                    <button id="btn-mq-low" class="menu-quality-btn" data-tier="low">🐢 Low<br><small>30 FPS</small></button>
+                    <button id="btn-mq-moderate" class="menu-quality-btn active" data-tier="moderate">🌿 Moderate<br><small>40 FPS</small></button>
+                    <button id="btn-mq-medium" class="menu-quality-btn" data-tier="medium">✨ Medium<br><small>50 FPS</small></button>
+                    <button id="btn-mq-high" class="menu-quality-btn" data-tier="high">🔥 High<br><small>60 FPS</small></button>
+                </div>
             </div>
             <div class="menu-section">
                 <h4>Controls &amp; Layout</h4>
@@ -97,18 +91,62 @@
         </div>
     </aside>
 
+    <!-- FAB column: Weather & Graphics floating action buttons -->
+    <div id="fab-col">
+        <button id="btn-weather-fab" class="fab-btn" title="Weather Controls (Day/Dawn/Night + Rain)">⛅</button>
+        <button id="btn-graphics-fab" class="fab-btn" title="Graphics Quality Tier (Hotkey: Q)">🎨</button>
+    </div>
+
+    <!-- Weather Panel (slide-in from right) -->
+    <div id="weather-panel" class="side-panel" aria-hidden="true">
+        <div class="panel-title">🌤️ Weather &amp; Time</div>
+        <div class="weather-row">
+            <button id="btn-w-day" class="wrow-btn active" data-preset="day">☀️ Day</button>
+            <button id="btn-w-dawn" class="wrow-btn" data-preset="dawn">🌅 Dawn</button>
+            <button id="btn-w-night" class="wrow-btn" data-preset="night">🌙 Night</button>
+        </div>
+        <div class="rain-row">
+            <span class="rain-label">🌧️ Rain</span>
+            <button id="btn-rain-toggle" class="rain-toggle" data-on="false">OFF</button>
+        </div>
+    </div>
+
+    <!-- Graphics Quality Panel (slide-in from right) -->
+    <div id="graphics-panel" class="side-panel" aria-hidden="true">
+        <div class="panel-title">🎨 Graphics Quality</div>
+        <div class="quality-grid">
+            <button id="btn-q-low" class="quality-card" data-tier="low">
+                <span class="q-icon">🐢</span>
+                <span class="q-name">Low</span>
+                <span class="q-fps">30 FPS</span>
+            </button>
+            <button id="btn-q-moderate" class="quality-card active" data-tier="moderate">
+                <span class="q-icon">🌿</span>
+                <span class="q-name">Moderate</span>
+                <span class="q-fps">40 FPS</span>
+            </button>
+            <button id="btn-q-medium" class="quality-card" data-tier="medium">
+                <span class="q-icon">✨</span>
+                <span class="q-name">Medium</span>
+                <span class="q-fps">50 FPS</span>
+            </button>
+            <button id="btn-q-high" class="quality-card" data-tier="high">
+                <span class="q-icon">🔥</span>
+                <span class="q-name">High</span>
+                <span class="q-fps">60 FPS</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Panel overlay dismissal -->
+    <div id="weather-panel-overlay" class="panel-overlay"></div>
+    <div id="graphics-panel-overlay" class="panel-overlay"></div>
+
     <!-- Live Thermal & Draw-Call Telemetry Pill -->
     <div id="perf-pill" aria-live="polite">
         <span class="perf-dot"></span>
         <span id="perf-text">45 FPS · 24 Draw Calls · CPU Cool</span>
     </div>
-
-    <!-- Left-Side Camera Navigation (+, -, Recenter) -->
-    <nav id="left-camera-hud" aria-label="Camera Controls">
-        <button id="btn-zoom-in" class="cam-btn" title="Zoom In (+)">+</button>
-        <button id="btn-zoom-out" class="cam-btn" title="Zoom Out (-)">−</button>
-        <button id="btn-recenter" class="cam-btn" title="Recenter Camera on Train">🎯</button>
-    </nav>
 
     <!-- The 3 Primary Controllers Dock + Throttle Slider (Grip Long-Tap Draggable) -->
     <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
@@ -142,7 +180,14 @@
         <!-- 4. Cruise Throttle Slider -->
         <div class="throttle-stack">
             <label for="throttle-slider" class="throttle-label">Throttle</label>
-            <input id="throttle-slider" type="range" min="25" max="100" value="85" title="Adjust Cruising Speed">
+            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed">
+        </div>
+
+        <!-- 5. Camera Controls Row -->
+        <div class="dock-cam-row">
+            <button id="btn-zoom-in" class="cam-dock-btn" title="Zoom In (+)">➕</button>
+            <button id="btn-zoom-out" class="cam-dock-btn" title="Zoom Out (−)">➖</button>
+            <button id="btn-recenter" class="cam-dock-btn" title="Recenter Camera on Train">🎯</button>
         </div>
 
         <div class="dock-hint">Hold grip bar to reposition dock · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>

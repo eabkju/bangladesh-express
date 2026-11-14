@@ -80,9 +80,17 @@
         }
         const btnEco = document.getElementById('btn-eco-mode');
         if (btnEco) {
-            btnEco.querySelector('.hud-val').textContent = mode.label;
+            const valEl = btnEco.querySelector('.hud-val');
+            if (valEl) valEl.textContent = mode.label;
             btnEco.classList.toggle('eco-active', mode.id !== 'high');
         }
+        // Sync quality cards in FAB panel and menu drawer
+        ['low','moderate','medium','high'].forEach(t => {
+            const c = document.getElementById('btn-q-' + t);
+            if (c) c.classList.toggle('active', t === mode.id);
+            const m = document.getElementById('btn-mq-' + t);
+            if (m) m.classList.toggle('active', t === mode.id);
+        });
     }
 
     function cyclePerformanceMode() {
@@ -92,6 +100,18 @@
         triggerPersistState();
         return mode;
     }
+
+    function setPerformanceModeById(id) {
+        const idx = GAME_CONFIG.performance.modes.findIndex(m => m.id === id);
+        if (idx === -1) return;
+        perfModeIdx = idx;
+        const mode = GAME_CONFIG.performance.modes[perfModeIdx];
+        applyPerformanceMode(mode);
+        triggerPersistState();
+        return mode;
+    }
+    // Expose globally for controls.js
+    window.setPerformanceModeById = setPerformanceModeById;
 
     function triggerPersistState() {
         if (!trainPhysics || !trackSystem) return;
@@ -184,13 +204,11 @@
             }
             if (saved.preset && weatherManager) {
                 const presetKey = (saved.preset === 'sunset') ? 'dawn' : saved.preset;
-                const p = weatherManager.applyPreset(presetKey, true);
-                const btnDN = document.getElementById('btn-day-night');
-                if (btnDN) {
-                    btnDN.querySelector('.hud-icon').textContent = p.icon;
-                    btnDN.querySelector('.hud-val').textContent = p.name;
-                    btnDN.classList.toggle('active', presetKey !== 'day');
-                }
+                weatherManager.applyPreset(presetKey, true);
+                ['day','dawn','night'].forEach(k => {
+                    const b = document.getElementById('btn-w-' + k);
+                    if (b) b.classList.toggle('active', k === presetKey);
+                });
             }
             if (saved.perf !== undefined) {
                 perfModeIdx = Math.max(0, Math.min(GAME_CONFIG.performance.modes.length - 1, saved.perf));
@@ -198,6 +216,12 @@
             }
             if (saved.rain && weatherManager) {
                 weatherManager.toggleRain();
+                const btnRT = document.getElementById('btn-rain-toggle');
+                if (btnRT) {
+                    btnRT.textContent = 'ON';
+                    btnRT.classList.add('on');
+                    btnRT.dataset.on = 'true';
+                }
             }
             if (saved.lights && locomotive) {
                 gameControls.toggleLights();
