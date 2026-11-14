@@ -1,4 +1,6 @@
-// weather.js - Zero-Shadow-Map Weather & Atmospheric Preset Manager (Day, Golden Sunset, Moonlit Starry Night & Rain)
+// weather.js - Zero-Shadow-Map Atmospheric Preset Manager (Day, Golden Sunset, Moonlit Starry Night & Monsoon Rain)
+// Features: Smooth 2.5s Color & Fog Transitions (B21), Dynamic Starry Night Sky Dome, Monsoonal Downpour
+
 class WeatherManager {
     constructor(scene, renderer, envManager, villageManager) {
         this.scene = scene;
@@ -9,6 +11,7 @@ class WeatherManager {
         this.presetOrder = ['day', 'sunset', 'night'];
         this.presetIdx = 0;
         this.isRaining = false;
+        this.currentPresetKey = 'day';
 
         this.dirLight = null;
         this.hemiLight = null;
@@ -17,20 +20,50 @@ class WeatherManager {
         this.starPoints = null;
         this.starMat = null;
 
-        // Lightweight Rain Particle System
+        // Smooth time-of-day transition state (B21)
+        this.isTransitioning = false;
+        this.transProgress = 1.0;
+        this.transDuration = 2.5;
+        this.srcSky = new THREE.Color();
+        this.targetSky = new THREE.Color();
+        this.srcFog = new THREE.Color();
+        this.targetFog = new THREE.Color();
+        this.srcSun = new THREE.Color();
+        this.targetSun = new THREE.Color();
+        this.srcHemiSky = new THREE.Color();
+        this.targetHemiSky = new THREE.Color();
+        this.srcHemiGnd = new THREE.Color();
+        this.targetHemiGnd = new THREE.Color();
+        this.srcAmb = new THREE.Color();
+        this.targetAmb = new THREE.Color();
+
+        this.srcSunInt = 1.25;
+        this.targetSunInt = 1.25;
+        this.srcHemiInt = 0.72;
+        this.targetHemiInt = 0.72;
+        this.srcAmbInt = 0.28;
+        this.targetAmbInt = 0.28;
+        this.srcFogDens = 0.00042;
+        this.targetFogDens = 0.00042;
+        this.srcStarOp = 0.0;
+        this.targetStarOp = 0.0;
+        this.srcSunPos = [140, 240, 160];
+        this.targetSunPos = [140, 240, 160];
+        this.targetWindowGlow = 0.08;
+
+        // Monsoonal Rain Particle System
         this.rainParticles = null;
-        this.rainCount = 1600;
+        this.rainCount = 1800;
         this.rainGeo = null;
 
         this._initLightingAndSky();
         this._initRainParticles();
-        this.applyPreset('day');
+        this.applyPreset('day', true); // initial immediate setup
     }
 
     _initLightingAndSky() {
         const p = GAME_CONFIG.colors.presets.day;
 
-        // Directional Sun / Moon Light (NO shadow map -> massive GPU/CPU thermal savings!)
         this.dirLight = new THREE.DirectionalLight(p.sunColor, p.sunIntensity);
         this.dirLight.castShadow = false;
         this.scene.add(this.dirLight);
@@ -44,7 +77,7 @@ class WeatherManager {
         this.scene.background = new THREE.Color(p.skyHorizon);
         this.scene.fog = new THREE.FogExp2(p.fogColor, p.fogDensity);
 
-        // Glowing Full Moon Orb
+        // Glowing Full Moon
         const moonGeo = new THREE.SphereGeometry(28, 16, 16);
         const moonMat = new THREE.MeshBasicMaterial({ color: 0xfefcd6, fog: false });
         this.moonMesh = new THREE.Mesh(moonGeo, moonMat);
@@ -52,7 +85,7 @@ class WeatherManager {
         this.moonMesh.visible = false;
         this.scene.add(this.moonMesh);
 
-        // Starry Night Sky Dome (600 stars in 1 Points call)
+        // Starry Night Sky (600 stars in 1 Points call)
         const starCount = 600;
         const starPos = new Float32Array(starCount * 3);
         for (let i = 0; i < starCount; i++) {
@@ -82,10 +115,10 @@ class WeatherManager {
         const velocities = new Float32Array(this.rainCount);
 
         for (let i = 0; i < this.rainCount; i++) {
-            positions[i * 3]     = (Math.random() - 0.5) * 180;
-            positions[i * 3 + 1] = Math.random() * 65;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 180;
-            velocities[i] = 42 + Math.random() * 18;
+            positions[i * 3]     = (Math.random() - 0.5) * 190;
+            positions[i * 3 + 1] = Math.random() * 70;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 190;
+            velocities[i] = 44 + Math.random() * 20;
         }
 
         this.rainGeo = new THREE.BufferGeometry();
@@ -94,9 +127,9 @@ class WeatherManager {
 
         const rainMat = new THREE.PointsMaterial({
             color: 0xaed4f7,
-            size: 0.42,
+            size: 0.45,
             transparent: true,
-            opacity: 0.62
+            opacity: 0.65
         });
 
         this.rainParticles = new THREE.Points(this.rainGeo, rainMat);
@@ -107,40 +140,80 @@ class WeatherManager {
     cycleTimeOfDay() {
         this.presetIdx = (this.presetIdx + 1) % this.presetOrder.length;
         const key = this.presetOrder[this.presetIdx];
-        return this.applyPreset(key);
+        return this.applyPreset(key, false);
     }
 
-    applyPreset(key) {
+    // Smooth time-of-day preset transition (B21)
+    applyPreset(key, immediate = false) {
         const p = GAME_CONFIG.colors.presets[key] || GAME_CONFIG.colors.presets.day;
         this.currentPresetKey = key;
 
-        this.scene.background.setHex(p.skyHorizon);
-        this.scene.fog.color.setHex(p.fogColor);
-        this.scene.fog.density = this.isRaining ? 0.00105 : p.fogDensity;
+        if (immediate) {
+            this.scene.background.setHex(p.skyHorizon);
+            this.scene.fog.color.setHex(p.fogColor);
+            this.scene.fog.density = this.isRaining ? 0.00105 : p.fogDensity;
 
-        this.dirLight.color.setHex(p.sunColor);
-        this.dirLight.intensity = this.isRaining ? p.sunIntensity * 0.55 : p.sunIntensity;
-        this.dirLight.position.set(p.sunPos[0], p.sunPos[1], p.sunPos[2]);
+            this.dirLight.color.setHex(p.sunColor);
+            this.dirLight.intensity = this.isRaining ? p.sunIntensity * 0.55 : p.sunIntensity;
+            this.dirLight.position.set(p.sunPos[0], p.sunPos[1], p.sunPos[2]);
 
-        this.hemiLight.color.setHex(p.hemiSky);
-        this.hemiLight.groundColor.setHex(p.hemiGround);
-        this.hemiLight.intensity = p.hemiIntensity;
+            this.hemiLight.color.setHex(p.hemiSky);
+            this.hemiLight.groundColor.setHex(p.hemiGround);
+            this.hemiLight.intensity = p.hemiIntensity;
 
-        this.ambientLight.color.setHex(p.ambientColor);
-        this.ambientLight.intensity = p.ambientIntensity;
+            this.ambientLight.color.setHex(p.ambientColor);
+            this.ambientLight.intensity = p.ambientIntensity;
+
+            this.moonMesh.visible = p.moonVisible && !this.isRaining;
+            this.starPoints.visible = p.starOpacity > 0.05 && !this.isRaining;
+            this.starMat.opacity = p.starOpacity;
+
+            if (this.envManager) this.envManager.setNightFactor(p.windowGlow, key !== 'day');
+            if (this.villageManager) this.villageManager.onTimeOfDayChange(key);
+            this.isTransitioning = false;
+            return p;
+        }
+
+        // Start smooth 2.5s transition
+        this.srcSky.copy(this.scene.background);
+        this.targetSky.setHex(p.skyHorizon);
+        this.srcFog.copy(this.scene.fog.color);
+        this.targetFog.setHex(p.fogColor);
+
+        this.srcSun.copy(this.dirLight.color);
+        this.targetSun.setHex(p.sunColor);
+        this.srcSunInt = this.dirLight.intensity;
+        this.targetSunInt = this.isRaining ? p.sunIntensity * 0.55 : p.sunIntensity;
+
+        this.srcHemiSky.copy(this.hemiLight.color);
+        this.targetHemiSky.setHex(p.hemiSky);
+        this.srcHemiGnd.copy(this.hemiLight.groundColor);
+        this.targetHemiGnd.setHex(p.hemiGround);
+        this.srcHemiInt = this.hemiLight.intensity;
+        this.targetHemiInt = p.hemiIntensity;
+
+        this.srcAmb.copy(this.ambientLight.color);
+        this.targetAmb.setHex(p.ambientColor);
+        this.srcAmbInt = this.ambientLight.intensity;
+        this.targetAmbInt = p.ambientIntensity;
+
+        this.srcFogDens = this.scene.fog.density;
+        this.targetFogDens = this.isRaining ? 0.00105 : p.fogDensity;
+
+        this.srcStarOp = this.starMat.opacity;
+        this.targetStarOp = (this.isRaining || !p.moonVisible) ? 0.0 : p.starOpacity;
+
+        this.srcSunPos = [this.dirLight.position.x, this.dirLight.position.y, this.dirLight.position.z];
+        this.targetSunPos = p.sunPos;
+        this.targetWindowGlow = p.windowGlow;
 
         this.moonMesh.visible = p.moonVisible && !this.isRaining;
-        this.starPoints.visible = p.starOpacity > 0.05 && !this.isRaining;
-        this.starMat.opacity = p.starOpacity;
+        this.starPoints.visible = true;
 
-        if (this.envManager) {
-            this.envManager.setNightFactor(p.windowGlow, key !== 'day');
-        }
+        this.isTransitioning = true;
+        this.transProgress = 0.0;
 
-        if (this.villageManager) {
-            this.villageManager.onTimeOfDayChange(key);
-        }
-
+        if (this.villageManager) this.villageManager.onTimeOfDayChange(key);
         return p;
     }
 
@@ -151,7 +224,7 @@ class WeatherManager {
     toggleRain() {
         this.isRaining = !this.isRaining;
         this.rainParticles.visible = this.isRaining;
-        this.applyPreset(this.currentPresetKey || 'day');
+        this.applyPreset(this.currentPresetKey || 'day', false);
         if (this.villageManager) {
             this.villageManager.onRainChange(this.isRaining);
         }
@@ -159,6 +232,45 @@ class WeatherManager {
     }
 
     update(dt, centerPosition) {
+        // Step smooth time-of-day transition (B21)
+        if (this.isTransitioning) {
+            this.transProgress += dt / this.transDuration;
+            const t = Math.min(1.0, this.transProgress);
+            // Smooth ease in/out
+            const ease = t * t * (3.0 - 2.0 * t);
+
+            this.scene.background.lerpColors(this.srcSky, this.targetSky, ease);
+            this.scene.fog.color.lerpColors(this.srcFog, this.targetFog, ease);
+            this.scene.fog.density = this.srcFogDens + (this.targetFogDens - this.srcFogDens) * ease;
+
+            this.dirLight.color.lerpColors(this.srcSun, this.targetSun, ease);
+            this.dirLight.intensity = this.srcSunInt + (this.targetSunInt - this.srcSunInt) * ease;
+            this.dirLight.position.set(
+                this.srcSunPos[0] + (this.targetSunPos[0] - this.srcSunPos[0]) * ease,
+                this.srcSunPos[1] + (this.targetSunPos[1] - this.srcSunPos[1]) * ease,
+                this.srcSunPos[2] + (this.targetSunPos[2] - this.srcSunPos[2]) * ease
+            );
+
+            this.hemiLight.color.lerpColors(this.srcHemiSky, this.targetHemiSky, ease);
+            this.hemiLight.groundColor.lerpColors(this.srcHemiGnd, this.targetHemiGnd, ease);
+            this.hemiLight.intensity = this.srcHemiInt + (this.targetHemiInt - this.srcHemiInt) * ease;
+
+            this.ambientLight.color.lerpColors(this.srcAmb, this.targetAmb, ease);
+            this.ambientLight.intensity = this.srcAmbInt + (this.targetAmbInt - this.srcAmbInt) * ease;
+
+            this.starMat.opacity = this.srcStarOp + (this.targetStarOp - this.srcStarOp) * ease;
+
+            if (this.envManager) {
+                this.envManager.setNightFactor(this.targetWindowGlow * ease, this.currentPresetKey !== 'day');
+            }
+
+            if (t >= 1.0) {
+                this.isTransitioning = false;
+                this.starPoints.visible = (this.targetStarOp > 0.05);
+            }
+        }
+
+        // Center celestial objects & weather around train position
         if (centerPosition && this.starPoints.visible) {
             this.starPoints.position.x = centerPosition.x;
             this.starPoints.position.z = centerPosition.z;
@@ -176,7 +288,7 @@ class WeatherManager {
             for (let i = 0; i < this.rainCount; i++) {
                 posArray[i * 3 + 1] -= vels[i] * dt;
                 if (posArray[i * 3 + 1] < 0) {
-                    posArray[i * 3 + 1] = 60 + (i % 12);
+                    posArray[i * 3 + 1] = 65 + (i % 12);
                 }
             }
             posAttr.needsUpdate = true;

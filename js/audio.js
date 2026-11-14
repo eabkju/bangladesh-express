@@ -1,5 +1,6 @@
 // audio.js - Zero-Allocation Procedural Web Audio Synthesizer
-// Features: Diesel Engine Pulse, Track Click-Clack Rhythm, Air Brake Hiss, Multi-Chime Nathan Horn & Rain Patter
+// Features: Diesel Engine Pulse & Cylinder Thumps, Track Click-Clack Rhythm, Air Brake Hiss, Multi-Chime Nathan Horn & Rain Patter
+// Optimized for low-end mobile devices, zero LFO leak, and thermal efficiency.
 class TrainAudioEngine {
     constructor() {
         this.audioCtx = null;
@@ -7,32 +8,52 @@ class TrainAudioEngine {
         this.isMuted = false;
 
         this.masterGain = null;
+        this.analyser = null;
+        this._analyserData = null;
+
+        // Engine synthesis
         this.engineOsc1 = null;
         this.engineOsc2 = null;
+        this.enginePulseSource = null;
+        this.enginePulseGain = null;
         this.engineFilter = null;
+        this.chugGain = null;
         this.engineGain = null;
         this.lfo = null;
         this.lfoGain = null;
 
+        // Automation throttling state
+        this._lastRpmT = 0;
+        this._lastRatio = -1;
+        this._lastRun = null;
+
+        // Rhythm & Ambience
         this.wheelSource = null;
         this.wheelGain = null;
         this.rainGain = null;
         this.noiseBuffer = null;
+        this.enginePulseBuffer = null;
 
+        // Horn
         this.hornGain = null;
         this.hornOscs = [];
 
         this.isEngineRunning = false;
         this.isRaining = false;
 
-        // Auto-suspend audio when browser tab is hidden to save CPU
+        // Auto-suspend audio when browser tab is hidden to save CPU & stop horn
         document.addEventListener('visibilitychange', () => {
             if (!this.audioCtx) return;
             if (document.hidden) {
+                this.stopHorn();
                 this.audioCtx.suspend();
             } else if (!this.isMuted) {
                 this.audioCtx.resume();
             }
+        });
+
+        window.addEventListener('blur', () => {
+            this.stopHorn();
         });
     }
 
@@ -46,14 +67,37 @@ class TrainAudioEngine {
 
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
-        this.audioCtx = new AC();
+        // Use latencyHint: 'playback' to lower CPU usage and glitch risk on mobile (N4)
+        try {
+            this.audioCtx = new AC({ latencyHint: 'playback' });
+        } catch (e) {
+            this.audioCtx = new AC();
+        }
 
+        // Handle iOS and mobile interrupted state (N5)
+        this.audioCtx.onstatechange = () => {
+            if (this.audioCtx && this.audioCtx.state === 'interrupted' && !document.hidden && !this.isMuted) {
+                this.audioCtx.resume();
+            }
+        };
+
+        // Master DynamicsCompressor used as limiter only, avoiding raised noise floor (N3)
         const comp = this.audioCtx.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-6, this.audioCtx.currentTime);
+        comp.knee.setValueAtTime(6, this.audioCtx.currentTime);
+        comp.ratio.setValueAtTime(4, this.audioCtx.currentTime);
+        comp.attack.setValueAtTime(0.005, this.audioCtx.currentTime);
+        comp.release.setValueAtTime(0.15, this.audioCtx.currentTime);
         comp.connect(this.audioCtx.destination);
+
+        // Analyser for debug/audiodebug telemetry
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.fftSize = 512;
+        this.analyser.connect(comp);
 
         this.masterGain = this.audioCtx.createGain();
         this.masterGain.gain.setValueAtTime(0.8, this.audioCtx.currentTime);
-        this.masterGain.connect(comp);
+        this.masterGain.connect(this.analyser);
 
         this._buildSharedBuffers();
         this._setupDieselEngine();
@@ -63,17 +107,48 @@ class TrainAudioEngine {
         this.isInitialized = true;
     }
 
+    unlock() {
+        this.init();
+        if (this.audioCtx && this.audioCtx.state !== 'running' && !document.hidden && !this.isMuted) {
+            this.audioCtx.resume();
+        }
+        if (this.isEngineRunning && this.audioCtx && this.engineGain) {
+            this.engineGain.gain.setTargetAtTime(0.22, this.audioCtx.currentTime, 0.2);
+        }
+    }
+
     _buildSharedBuffers() {
         const sr = this.audioCtx.sampleRate;
+        // 1. White noise buffer
         this.noiseBuffer = this.audioCtx.createBuffer(1, sr * 2, sr);
         const data = this.noiseBuffer.getChannelData(0);
         for (let i = 0; i < data.length; i++) {
             data[i] = Math.random() * 2 - 1;
         }
+
+        // 2. Diesel cylinder firing pulse buffer (N2: authentic diesel thumps for mobile speakers)
+        const pulseLen = Math.floor(sr * 0.5);
+        this.enginePulseBuffer = this.audioCtx.createBuffer(1, pulseLen, sr);
+        const pd = this.enginePulseBuffer.getChannelData(0);
+        const pulses = [0.0, 0.125, 0.25, 0.375];
+        pulses.forEach(hitTime => {
+            const st = Math.floor(hitTime * sr);
+            const dur = Math.floor(sr * 0.05);
+            let lpv = 0;
+            for (let k = 0; k < dur && st + k < pulseLen; k++) {
+                const env = Math.exp(-k / (sr * 0.012));
+                const n = Math.random() * 2 - 1;
+                lpv += (n - lpv) * 0.3;
+                const thump = (lpv * 0.6 + Math.sin(2 * Math.PI * 110 * k / sr) * 0.4) * env;
+                pd[st + k] += thump * 0.45;
+            }
+        });
     }
 
     _setupDieselEngine() {
         const t = this.audioCtx.currentTime;
+
+        // Two primary low-frequency oscillators
         this.engineOsc1 = this.audioCtx.createOscillator();
         this.engineOsc1.type = 'sawtooth';
         this.engineOsc1.frequency.setValueAtTime(GAME_CONFIG.audio.idleRpmFreq, t);
@@ -82,29 +157,47 @@ class TrainAudioEngine {
         this.engineOsc2.type = 'triangle';
         this.engineOsc2.frequency.setValueAtTime(GAME_CONFIG.audio.idleRpmFreq * 1.5, t);
 
+        // Lowpass filter with Q = 0.8 (removes sharp whistling resonance on phones)
         this.engineFilter = this.audioCtx.createBiquadFilter();
         this.engineFilter.type = 'lowpass';
         this.engineFilter.frequency.setValueAtTime(180, t);
-        this.engineFilter.Q.setValueAtTime(2.2, t);
+        this.engineFilter.Q.setValueAtTime(0.8, t);
 
-        this.engineGain = this.audioCtx.createGain();
-        this.engineGain.gain.setValueAtTime(0.0, t);
+        // Loop cylinder firing pulse buffer (N2)
+        this.enginePulseSource = this.audioCtx.createBufferSource();
+        this.enginePulseSource.buffer = this.enginePulseBuffer;
+        this.enginePulseSource.loop = true;
+        this.enginePulseGain = this.audioCtx.createGain();
+        this.enginePulseGain.gain.setValueAtTime(0.35, t);
+        this.enginePulseSource.connect(this.enginePulseGain);
 
+        // LFO tremolo modulation (N1: wired to dedicated chugGain, never to engineGain.gain!)
         this.lfo = this.audioCtx.createOscillator();
         this.lfo.type = 'sine';
         this.lfo.frequency.setValueAtTime(7, t);
+
+        this.chugGain = this.audioCtx.createGain();          // chug tremolo VCA
+        this.chugGain.gain.setValueAtTime(0.85, t);          // base level
         this.lfoGain = this.audioCtx.createGain();
-        this.lfoGain.gain.setValueAtTime(0.04, t);
+        this.lfoGain.gain.setValueAtTime(0.15, t);           // +/-15% chug depth
         this.lfo.connect(this.lfoGain);
-        this.lfoGain.connect(this.engineGain.gain);
+        this.lfoGain.connect(this.chugGain.gain);            // modulates chugGain only
+
+        // Pure envelope gain: engineGain stays 0.0 when stopped -> TRUE SILENCE (-100 dBFS)
+        this.engineGain = this.audioCtx.createGain();
+        this.engineGain.gain.setValueAtTime(0.0, t);
 
         this.engineOsc1.connect(this.engineFilter);
         this.engineOsc2.connect(this.engineFilter);
-        this.engineFilter.connect(this.engineGain);
+        this.enginePulseGain.connect(this.engineFilter);
+
+        this.engineFilter.connect(this.chugGain);
+        this.chugGain.connect(this.engineGain);
         this.engineGain.connect(this.masterGain);
 
         this.engineOsc1.start();
         this.engineOsc2.start();
+        this.enginePulseSource.start();
         this.lfo.start();
     }
 
@@ -186,15 +279,26 @@ class TrainAudioEngine {
         this.wheelGain.gain.setTargetAtTime(0.0, this.audioCtx.currentTime, 0.3);
     }
 
+    // Throttled parameter automation at ~15Hz, skipping redundant events (N4)
     updateRPM(speedRatio, isRunning) {
-        if (!this.isInitialized || !this.audioCtx) return;
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const now = performance.now();
+        if (now - (this._lastRpmT || 0) < 66) return;
+        if (Math.abs(speedRatio - (this._lastRatio ?? -1)) < 0.004 && isRunning === this._lastRun) return;
+        this._lastRpmT = now;
+        this._lastRatio = speedRatio;
+        this._lastRun = isRunning;
+
         const t = this.audioCtx.currentTime;
         const active = isRunning || speedRatio > 0.01;
 
         const baseFreq = GAME_CONFIG.audio.idleRpmFreq + (GAME_CONFIG.audio.maxRpmFreq - GAME_CONFIG.audio.idleRpmFreq) * speedRatio;
         this.engineOsc1.frequency.setTargetAtTime(baseFreq, t, 0.15);
         this.engineOsc2.frequency.setTargetAtTime(baseFreq * 1.5, t, 0.15);
-        this.engineFilter.frequency.setTargetAtTime(170 + speedRatio * 360, t, 0.15);
+        if (this.enginePulseSource) {
+            this.enginePulseSource.playbackRate.setTargetAtTime(0.8 + speedRatio * 1.0, t, 0.15);
+        }
+        this.engineFilter.frequency.setTargetAtTime(170 + speedRatio * 340, t, 0.15);
         this.lfo.frequency.setTargetAtTime(6 + speedRatio * 14, t, 0.15);
         this.engineGain.gain.setTargetAtTime(active ? (0.14 + speedRatio * 0.18) : 0.0, t, 0.2);
 
@@ -267,6 +371,16 @@ class TrainAudioEngine {
         s.connect(f);
         f.connect(g);
         g.connect(this.masterGain);
+
+        // Disconnect nodes on sound end to prevent memory leakage (N4)
+        s.onended = () => {
+            try {
+                s.disconnect();
+                f.disconnect();
+                g.disconnect();
+            } catch (e) {}
+        };
+
         s.start(t);
         s.stop(t + 1.15);
     }
@@ -277,5 +391,19 @@ class TrainAudioEngine {
         this.isRaining = enable;
         const target = enable ? (GAME_CONFIG.audio.rainNoiseDensity || 0.22) : 0.0;
         this.rainGain.gain.setTargetAtTime(target, this.audioCtx.currentTime, 0.35);
+    }
+
+    // RMS level in dBFS for ?audiodebug=1 telemetry (Section 2.4)
+    getAudioDb() {
+        if (!this.analyser || !this.audioCtx || this.audioCtx.state !== 'running') return -100;
+        if (!this._analyserData) this._analyserData = new Float32Array(this.analyser.fftSize);
+        this.analyser.getFloatTimeDomainData(this._analyserData);
+        let sum = 0;
+        for (let i = 0; i < this._analyserData.length; i++) {
+            sum += this._analyserData[i] * this._analyserData[i];
+        }
+        const rms = Math.sqrt(sum / this._analyserData.length);
+        if (rms < 1e-5) return -100;
+        return Math.max(-100, Math.round(20 * Math.log10(rms)));
     }
 }

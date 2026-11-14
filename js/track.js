@@ -17,6 +17,9 @@ class TrackSystem {
         this.TY = new Float32Array(this.N + 1);
         this.TZ = new Float32Array(this.N + 1);
 
+        this._tmpP = new THREE.Vector3();
+        this._tmpT = new THREE.Vector3();
+
         this.initSplineAndBakeTable();
         this.buildBallastAndEmbankment();
         this.buildRails();
@@ -116,6 +119,25 @@ class TrackSystem {
         return outVec;
     }
 
+    // Place an object beside the track at normalized progress u, side (-1 or +1), and offset (meters)
+    // Ensures front of structure faces the track accurately (Section 14)
+    placeBesideTrack(u, side, offset, outPos, outYaw) {
+        this.samplePoint(u, this._tmpP);
+        this.sampleTangent(u, this._tmpT);
+        const nx = -this._tmpT.z, nz = this._tmpT.x;
+        const nl = Math.hypot(nx, nz) || 1.0;
+        const rx = nx / nl, rz = nz / nl;
+        outPos.set(
+            this._tmpP.x + side * offset * rx,
+            this._tmpP.y,
+            this._tmpP.z + side * offset * rz
+        );
+        if (outYaw) {
+            outYaw.value = Math.atan2(-side * rx, -side * rz);
+        }
+        return { pos: outPos, yaw: outYaw ? outYaw.value : Math.atan2(-side * rx, -side * rz) };
+    }
+
     // Fast Track Safety Clearance Check (ensures trees, cottages & farms never encroach on tracks)
     getMinDistanceToTrack(x, z, step = 16) {
         let minSq = Infinity;
@@ -126,6 +148,26 @@ class TrackSystem {
             if (sq < minSq) minSq = sq;
         }
         return Math.sqrt(minSq);
+    }
+
+    // Dev verification helper: sweeps train envelope (half-width 1.6m, height 4.3m) (Section 11.3)
+    assertClearance(objects = []) {
+        const trainHalfWidth = 1.6;
+        let conflicts = 0;
+        const pt = new THREE.Vector3();
+        objects.forEach(obj => {
+            if (!obj || !obj.position) return;
+            const dist = this.getMinDistanceToTrack(obj.position.x, obj.position.z, 4);
+            const reqDist = (obj.clearanceRadius || 2.2) + trainHalfWidth;
+            if (dist < reqDist) {
+                console.warn(`[Clearance Alert] Object ${obj.name || 'unnamed'} at distance ${dist.toFixed(2)}m is closer than required ${reqDist.toFixed(2)}m!`);
+                conflicts++;
+            }
+        });
+        if (conflicts === 0) {
+            console.log(`[Clearance Check] Passed: All trackside objects have safe clearance >= 1.6m.`);
+        }
+        return conflicts === 0;
     }
 
     // Builds a single-draw-call procedural crushed stone ballast & embankment ribbon

@@ -130,18 +130,18 @@ class EnvironmentManager {
         shoreMesh.position.set(0, -0.14, 680);
         lakeGroup.add(shoreMesh);
 
-        // 4 Wooden Sailboats on the Lake
+        // 4 Wooden Country Sailboats (নৌকা) & Water Lilies (শাপলা) on the Lake (Section 21.3)
         const hullMat = new THREE.MeshLambertMaterial({ color: 0x4d321e });
         const sailMat = new THREE.MeshLambertMaterial({ color: 0xf5efe2, side: THREE.DoubleSide });
         [[-45, 640, 0.4], [50, 710, -1.1], [-20, 745, 2.1], [65, 650, 0.9]].forEach(([bx, bz, rot]) => {
             const boat = new THREE.Group();
-            const hull = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 4.8), hullMat);
+            const hull = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 5.2), hullMat);
             hull.position.y = 0.2;
             boat.add(hull);
             const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.2, 6), hullMat);
             mast.position.y = 2.2;
             boat.add(mast);
-            const sail = new THREE.Mesh(new THREE.ConeGeometry(1.5, 3.4, 3), sailMat);
+            const sail = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.4, 3), sailMat);
             sail.position.set(0, 2.3, 0.2);
             boat.add(sail);
             boat.position.set(bx, -0.05, bz);
@@ -149,83 +149,159 @@ class EnvironmentManager {
             lakeGroup.add(boat);
         });
 
+        // Water lilies (শাপলা) on the Lake
+        const lilyMat = new THREE.MeshBasicMaterial({ color: 0x2e6f40, side: THREE.DoubleSide });
+        const lilyGeo = new THREE.CircleGeometry(1.4, 8);
+        lilyGeo.rotateX(-Math.PI * 0.5);
+        const lilyInst = new THREE.InstancedMesh(lilyGeo, lilyMat, 30);
+        const lDummy = new THREE.Object3D();
+        for (let li = 0; li < 30; li++) {
+            const lAngle = (li / 30) * Math.PI * 2 + (li % 3);
+            const lRad = 40 + (li * 13) % 95;
+            lDummy.position.set(Math.cos(lAngle) * lRad, -0.06, 680 + Math.sin(lAngle) * lRad);
+            lDummy.scale.set(0.8 + (li % 4) * 0.2, 1, 0.8 + (li % 4) * 0.2);
+            lDummy.updateMatrix();
+            lilyInst.setMatrixAt(li, lDummy.matrix);
+        }
+        lilyInst.instanceMatrix.needsUpdate = true;
+        lakeGroup.add(lilyInst);
+
         this.scene.add(lakeGroup);
     }
 
-    // Heritage Countryside Railway Station ("Greenlands Valley Junction")
+    // Heritage Countryside Railway Station ("গ্রিনল্যান্ডস জংশন / Greenlands Junction")
+    // Corrected placement on the outer side of track with an 84m curved platform (Sections 11 & 13)
     _buildCountryStation() {
         const uStation = 0.085;
-        const pt = new THREE.Vector3();
-        const tan = new THREE.Vector3();
-        this.trackSystem.samplePoint(uStation, pt);
-        this.trackSystem.sampleTangent(uStation, tan);
-
-        const nx = -tan.z, nz = tan.x;
-        const nLen = Math.hypot(nx, nz) || 1;
-        const rx = nx / nLen, rz = nz / nLen;
-
-        const stGroup = new THREE.Group();
-        stGroup.position.set(pt.x + rx * 6.2, pt.y, pt.z + rz * 6.2);
-        stGroup.rotation.y = Math.atan2(tan.x, tan.z);
+        const totalLen = this.trackLength || 2200;
+        const EDGE = 2.05, PW = 5.6, D = EDGE + PW / 2; // 4.85m platform center from track axis
 
         const platMat = new THREE.MeshLambertMaterial({ color: 0x878278 });
         const safetyLineMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-        const wallMat = new THREE.MeshLambertMaterial({ color: 0xdfd3be });
         const roofMat = new THREE.MeshLambertMaterial({ color: 0x7c2d23 });
         const pillarMat = new THREE.MeshLambertMaterial({ color: 0x263847 });
+        const benchMat = new THREE.MeshLambertMaterial({ color: 0x4a3222 });
 
-        // Platform Base (56m long)
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.85, 56), platMat);
-        platform.position.set(0, 0.42, 0);
-        stGroup.add(platform);
+        const stGroup = new THREE.Group();
+        this.stationGroup = stGroup;
 
-        // Yellow safety tactile line along track edge
-        const yellowLine = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 55.6), safetyLineMat);
-        yellowLine.position.set(-2.35, 0.86, 0);
-        stGroup.add(yellowLine);
+        // 84m curved platform built in 7 segments of 12m following track spline curvature (U2, B15)
+        const segCount = 7;
+        const segLen = 12.0;
+        const segGeo = new THREE.BoxGeometry(PW, 0.85, segLen + 0.3);
+        const yelGeo = new THREE.BoxGeometry(0.22, 0.02, segLen + 0.3);
+        const canopyRoofGeo = new THREE.BoxGeometry(5.2, 0.25, segLen + 0.2);
+        const postGeo = new THREE.CylinderGeometry(0.12, 0.12, 4.0, 8);
+        const benchGeo = new THREE.BoxGeometry(1.2, 0.5, 2.4);
 
-        // Canopy Roof & Pillars
-        const canopy = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.25, 36), roofMat);
-        canopy.position.set(-0.2, 4.3, 0);
-        stGroup.add(canopy);
+        const pt = new THREE.Vector3();
+        const tan = new THREE.Vector3();
 
-        for (let z = -15; z <= 15; z += 7.5) {
-            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.5, 8), pillarMat);
-            post.position.set(-1.6, 2.55, z);
-            stGroup.add(post);
+        for (let k = -3; k <= 3; k++) {
+            const uSeg = (uStation + (k * segLen) / totalLen + 1.0) % 1.0;
+            this.trackSystem.samplePoint(uSeg, pt);
+            this.trackSystem.sampleTangent(uSeg, tan);
+
+            const nx = -tan.z, nz = tan.x;
+            const nLen = Math.hypot(nx, nz) || 1.0;
+            const rx = nx / nLen, rz = nz / nLen;
+            const yaw = Math.atan2(tan.x, tan.z);
+
+            const segGroup = new THREE.Group();
+            segGroup.position.set(pt.x - rx * D, pt.y, pt.z - rz * D);
+            segGroup.rotation.y = yaw;
+
+            // Platform concrete slab
+            const platMesh = new THREE.Mesh(segGeo, platMat);
+            platMesh.position.set(0, 0.42, 0);
+            segGroup.add(platMesh);
+
+            // Tactile yellow safety line along track edge (local x = -PW/2 + 0.25)
+            const yelMesh = new THREE.Mesh(yelGeo, safetyLineMat);
+            yelMesh.position.set(-PW * 0.5 + 0.25, 0.86, 0);
+            segGroup.add(yelMesh);
+
+            // Covered Canopy over central 48m (|k| <= 2)
+            if (Math.abs(k) <= 2) {
+                const cRoof = new THREE.Mesh(canopyRoofGeo, roofMat);
+                cRoof.position.set(-0.2, 4.85, 0); // Underside clear of 4.2m train roof
+                segGroup.add(cRoof);
+
+                // Canopy support posts
+                const post = new THREE.Mesh(postGeo, pillarMat);
+                post.position.set(-1.6, 2.85, 0);
+                segGroup.add(post);
+
+                // Emissive platform lamp bulb
+                const lampBulb = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.15, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xffe099 })
+                );
+                lampBulb.position.set(-1.6, 4.65, 0);
+                segGroup.add(lampBulb);
+
+                // Platform benches
+                if (k === -1 || k === 1) {
+                    const bench = new THREE.Mesh(benchGeo, benchMat);
+                    bench.position.set(1.1, 0.95, 0);
+                    segGroup.add(bench);
+                }
+            }
+
+            stGroup.add(segGroup);
         }
 
-        // Main Brick & Timber Station Building
-        const bldg = new THREE.Mesh(new THREE.BoxGeometry(6.5, 4.8, 22), this.materials.cottageWall);
-        bldg.position.set(5.2, 2.8, 0);
-        stGroup.add(bldg);
+        // Main Station Building positioned flush behind the platform at uStation (B14)
+        this.trackSystem.samplePoint(uStation, pt);
+        this.trackSystem.sampleTangent(uStation, tan);
+        const nx = -tan.z, nz = tan.x;
+        const nLen = Math.hypot(nx, nz) || 1.0;
+        const rx = nx / nLen, rz = nz / nLen;
+        const yaw = Math.atan2(tan.x, tan.z);
 
-        const bldgRoof = new THREE.Mesh(new THREE.ConeGeometry(13.5, 2.8, 4), roofMat);
+        const bldgGroup = new THREE.Group();
+        // Building center placed at D + PW/2 + BldgWidth/2 = 4.85 + 2.8 + 3.25 = 10.9m from track
+        const bldgDist = D + 6.0;
+        bldgGroup.position.set(pt.x - rx * bldgDist, pt.y, pt.z - rz * bldgDist);
+        bldgGroup.rotation.y = yaw;
+
+        const bldg = new THREE.Mesh(new THREE.BoxGeometry(6.5, 4.8, 24), this.materials.cottageWall);
+        bldg.position.set(0, 2.4, 0);
+        bldgGroup.add(bldg);
+
+        const bldgRoof = new THREE.Mesh(new THREE.ConeGeometry(14.5, 3.2, 4), roofMat);
         bldgRoof.rotation.y = Math.PI / 4;
-        bldgRoof.scale.set(0.55, 1, 1.25);
-        bldgRoof.position.set(5.2, 6.6, 0);
-        stGroup.add(bldgRoof);
+        bldgRoof.scale.set(0.55, 1, 1.35);
+        bldgRoof.position.set(0, 6.4, 0);
+        bldgGroup.add(bldgRoof);
 
-        // Station Signboard ("GREENLANDS VALLEY")
+        // Bilingual Bengali & English Station Signboard (Section 13.3)
         const sCanvas = document.createElement('canvas');
-        sCanvas.width = 512; sCanvas.height = 96;
+        sCanvas.width = 512; sCanvas.height = 128;
         const sg = sCanvas.getContext('2d');
-        sg.fillStyle = '#143326';
-        sg.fillRect(0, 0, 512, 96);
+        sg.fillStyle = '#0f2f1e'; // Bangladesh railway deep green
+        sg.fillRect(0, 0, 512, 128);
         sg.strokeStyle = '#e0b658';
         sg.lineWidth = 6;
-        sg.strokeRect(4, 4, 504, 88);
+        sg.strokeRect(4, 4, 504, 120);
+
         sg.fillStyle = '#f8fafc';
-        sg.font = 'bold 34px sans-serif';
+        sg.font = "bold 32px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
         sg.textAlign = 'center';
         sg.textBaseline = 'middle';
-        sg.fillText('GREENLANDS JUNCTION', 256, 48);
+        sg.fillText('গ্রিনল্যান্ডস জংশন', 256, 42);
+
+        sg.font = 'bold 24px sans-serif';
+        sg.fillStyle = '#facc15';
+        sg.fillText('GREENLANDS JUNCTION', 256, 90);
 
         const signMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sCanvas) });
-        const signBoard = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.95, 5.2), signMat);
-        signBoard.position.set(-2.65, 4.5, 0);
+        const signBoard = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.25, 5.2), signMat);
+        signBoard.position.set(pt.x - rx * (D + 1.2), pt.y + 4.9, pt.z - rz * (D + 1.2));
+        signBoard.rotation.y = yaw;
         stGroup.add(signBoard);
 
+        stGroup.add(bldgGroup);
         this.scene.add(stGroup);
     }
 
@@ -274,6 +350,26 @@ class EnvironmentManager {
             crGroup.add(pivot);
             this.crossingGates.push({ pivot: pivot, dirSign: dirSign, angle: 0 });
         });
+
+        // Level Crossing Warning Signboard "সাবধান! রেলগেট" (Section 21.5)
+        const lcCanvas = document.createElement('canvas');
+        lcCanvas.width = 256; lcCanvas.height = 96;
+        const lcg = lcCanvas.getContext('2d');
+        lcg.fillStyle = '#b91c1c';
+        lcg.fillRect(0, 0, 256, 96);
+        lcg.strokeStyle = '#f8fafc';
+        lcg.lineWidth = 4;
+        lcg.strokeRect(3, 3, 250, 90);
+        lcg.fillStyle = '#ffffff';
+        lcg.font = "bold 24px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
+        lcg.textAlign = 'center';
+        lcg.textBaseline = 'middle';
+        lcg.fillText('সাবধান! রেলগেট', 128, 48);
+
+        const lcSignMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(lcCanvas) });
+        const lcSign = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.65, 1.8), lcSignMat);
+        lcSign.position.set(-5.2, 2.2, -4.2);
+        crGroup.add(lcSign);
 
         this.scene.add(crGroup);
     }
@@ -504,12 +600,14 @@ class EnvironmentManager {
         this.scene.add(trunkInst, pineInst, oakInst, bushInst, rockInst);
     }
 
-    // 100% Instanced Country Cottages with Night-Glowing Windows (2 draw calls instead of 70!)
+    // 100% Instanced Bangladeshi Tin-Roof Huts with Night-Glowing Windows (Section 21.1)
     _buildInstancedVillageCottages() {
         const count = 42;
-        const bodyGeo = new THREE.BoxGeometry(6.8, 4.4, 5.4);
-        const roofGeo = new THREE.ConeGeometry(5.6, 2.4, 4);
+        const bodyGeo = new THREE.BoxGeometry(6.4, 3.6, 5.0);
+        // Sloped tin roof geometry
+        const roofGeo = new THREE.ConeGeometry(5.2, 2.0, 4);
         roofGeo.rotateY(Math.PI / 4);
+        roofGeo.scale(1.2, 1.0, 0.95);
 
         const bodyInst = new THREE.InstancedMesh(bodyGeo, this.materials.cottageWall, count);
         const roofInst = new THREE.InstancedMesh(roofGeo, this.materials.cottageRoof, count);
@@ -549,13 +647,13 @@ class EnvironmentManager {
             const yaw = Math.atan2(tan.x, tan.z) + (side > 0 ? -Math.PI * 0.5 : Math.PI * 0.5);
             const sc = 0.9 + (i % 4) * 0.12;
 
-            dummy.position.set(bx, 2.2 * sc, bz);
+            dummy.position.set(bx, 1.8 * sc, bz);
             dummy.rotation.set(0, yaw, 0);
             dummy.scale.set(sc, sc, sc);
             dummy.updateMatrix();
             bodyInst.setMatrixAt(i, dummy.matrix);
 
-            dummy.position.set(bx, (4.4 + 1.1) * sc, bz);
+            dummy.position.set(bx, (3.6 + 1.0) * sc, bz);
             dummy.updateMatrix();
             roofInst.setMatrixAt(i, dummy.matrix);
         }

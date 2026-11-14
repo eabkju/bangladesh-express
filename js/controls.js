@@ -1,4 +1,6 @@
-// controls.js - Complete Zero-GC Camera Orbit, Multi-Angle Views, Long-Tap Draggable Dock & UI Controls
+// controls.js - Complete Zero-GC Camera Orbit, Multi-Angle Views, Mobile-Responsive Dock & Cockpit Controls
+// Includes: Responsive FOV Helper, Mode-Aware Zoom, Cab-Forward Cockpit POV, Draggable Dock Clamping & Haptics
+
 class GameControls {
     constructor(camera, domElement, locomotive, trainPhysics, weatherManager, envManager, audioManager, onPerfModeChange) {
         this.camera = camera;
@@ -10,10 +12,11 @@ class GameControls {
         this.audioManager = audioManager;
         this.onPerfModeChange = onPerfModeChange;
 
-        // Camera Modes: 0 = Orbit Chase, 1 = Cab POV, 2 = Trackside Flyby, 3 = Drone Overview
+        // Camera Modes: 0 = Orbit Chase, 1 = Deck POV, 2 = Trackside Flyby, 3 = Drone Overview
         this.cameraModes = ['🎥 Chase', '🚂 Deck POV', '🎬 Trackside', '🦅 Drone'];
         this.camModeIdx = 0;
         this._lastFov = 52;
+        this.deckFovOffset = 0;
         this.tracksideAnchor = new THREE.Vector3(40, 4.5, 60);
         this.tracksideTimer = 0;
 
@@ -23,17 +26,24 @@ class GameControls {
         this.pitch = GAME_CONFIG.camera.defaultPitch;
         this.yaw = GAME_CONFIG.camera.defaultYaw;
 
-        // Pre-allocated Scratchpad Vectors (Zero GC allocations per frame!)
+        // Pre-allocated Vectors (Zero GC allocations per frame!)
         this.targetLookAt = new THREE.Vector3();
         this.currentLookAt = new THREE.Vector3();
         this._tmpVec = new THREE.Vector3();
+        this._deckEye = new THREE.Vector3();
+        this._deckLook = new THREE.Vector3();
         this.cameraMovedRecently = true;
 
-        // Pointer & Pinch Zoom State
+        // Pointer & Pinch Zoom State (Allocation-free integer tracker - B24)
         this.pointers = {};
+        this.pointerCount = 0;
+        this.activePointerIds = [];
         this.lastPinchDist = 0;
 
-        // Speedometer DOM caching (only update DOM when integer km/h changes)
+        // Screen WakeLock
+        this.wakeLock = null;
+
+        // Speedometer DOM caching
         this.speedValEl = document.getElementById('speed-gauge-val');
         this.lastDisplayedKmh = -1;
 
@@ -41,11 +51,36 @@ class GameControls {
         this._initKeyboardListeners();
         this._initHUDButtons();
         this._initDraggableDock();
+        this._initAudioUnlockListeners();
+    }
+
+    _initAudioUnlockListeners() {
+        // Unlock Web Audio on first user interaction gesture (N5 / B2)
+        const unlock = () => {
+            if (this.audioManager) this.audioManager.unlock();
+            this.requestWakeLock();
+        };
+        ['pointerdown', 'touchend', 'keydown'].forEach(ev => {
+            window.addEventListener(ev, unlock, { passive: true, once: false });
+        });
+    }
+
+    async requestWakeLock() {
+        if ('wakeLock' in navigator && !this.wakeLock) {
+            try {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                this.wakeLock.addEventListener('release', () => { this.wakeLock = null; });
+            } catch (err) {}
+        }
     }
 
     _initOrbitPointerListeners() {
         this.domElement.addEventListener('pointerdown', (e) => {
             this.domElement.setPointerCapture(e.pointerId);
+            if (!this.pointers[e.pointerId]) {
+                this.pointerCount++;
+                this.activePointerIds.push(e.pointerId);
+            }
             this.pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
             this.lastPinchDist = 0;
             this.cameraMovedRecently = true;
@@ -55,17 +90,22 @@ class GameControls {
             const p = this.pointers[e.pointerId];
             if (!p) return;
 
-            const ids = Object.keys(this.pointers);
-            if (ids.length === 2) {
-                this.pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
-                const a = this.pointers[ids[0]];
-                const b = this.pointers[ids[1]];
-                const dist = Math.hypot(a.x - b.x, a.y - b.y);
-                if (this.lastPinchDist > 0 && dist > 0) {
-                    this.zoom(this.lastPinchDist / dist);
+            // Two-finger pinch zoom (B24: zero Object.keys allocation!)
+            if (this.pointerCount === 2) {
+                p.x = e.clientX;
+                p.y = e.clientY;
+                const id0 = this.activePointerIds[0];
+                const id1 = this.activePointerIds[1];
+                const p0 = this.pointers[id0];
+                const p1 = this.pointers[id1];
+                if (p0 && p1) {
+                    const dist = Math.hypot(p0.x - p1.x, p0.y - p1.y);
+                    if (this.lastPinchDist > 0 && dist > 0) {
+                        this.zoom(this.lastPinchDist / dist);
+                    }
+                    this.lastPinchDist = dist;
+                    this.cameraMovedRecently = true;
                 }
-                this.lastPinchDist = dist;
-                this.cameraMovedRecently = true;
                 return;
             }
 
@@ -80,7 +120,12 @@ class GameControls {
         });
 
         const endPtr = (e) => {
-            delete this.pointers[e.pointerId];
+            if (this.pointers[e.pointerId]) {
+                delete this.pointers[e.pointerId];
+                this.pointerCount = Math.max(0, this.pointerCount - 1);
+                const idx = this.activePointerIds.indexOf(e.pointerId);
+                if (idx !== -1) this.activePointerIds.splice(idx, 1);
+            }
             this.lastPinchDist = 0;
         };
         this.domElement.addEventListener('pointerup', endPtr);
@@ -90,56 +135,122 @@ class GameControls {
             e.preventDefault();
             this.zoom(Math.exp(e.deltaY * 0.0012));
         }, { passive: false });
+
+        // Double-tap in Deck POV to recenter look direction (Section 3.2)
+        this.domElement.addEventListener('dblclick', () => {
+            if (this.camModeIdx === 1) {
+                this.yaw = GAME_CONFIG.camera.defaultYaw;
+                this.pitch = GAME_CONFIG.camera.defaultPitch;
+                this.cameraMovedRecently = true;
+            }
+        });
     }
 
+    // Responsive FOV calculation prevents narrow tunnel vision in portrait orientation (B9)
+    _fitFov(hDeg) {
+        const aspect = this.camera.aspect || (window.innerWidth / window.innerHeight);
+        const v = 2 * Math.atan(Math.tan(hDeg * Math.PI / 360) / aspect) * 180 / Math.PI;
+        return Math.max(40, Math.min(85, v));
+    }
+
+    _applyFov(targetFov) {
+        if (Math.abs(this._lastFov - targetFov) > 0.05) {
+            this.camera.fov = targetFov;
+            this.camera.updateProjectionMatrix();
+            this._lastFov = targetFov;
+        }
+    }
+
+    // Mode-aware Zoom: Distance in Chase, FOV in Deck (B7)
     zoom(factor) {
-        this.targetDistance = Math.max(
-            GAME_CONFIG.camera.minDistance,
-            Math.min(GAME_CONFIG.camera.maxDistance, this.targetDistance * factor)
-        );
+        if (this.camModeIdx === 0) {
+            this.targetDistance = Math.max(
+                GAME_CONFIG.camera.minDistance,
+                Math.min(GAME_CONFIG.camera.maxDistance, this.targetDistance * factor)
+            );
+        } else if (this.camModeIdx === 1) {
+            const step = factor < 1.0 ? -8 : 8;
+            this.deckFovOffset = Math.max(-16, Math.min(16, this.deckFovOffset + step));
+        }
         this.cameraMovedRecently = true;
     }
 
     recenter() {
         this.camModeIdx = 0;
         document.body.classList.remove('deck-view');
+        if (this.locomotive) this.locomotive.setDeckView(false);
+        this.camera.near = 0.25;
+        this.camera.updateProjectionMatrix();
         this.targetDistance = GAME_CONFIG.camera.defaultDistance;
         this.pitch = GAME_CONFIG.camera.defaultPitch;
         this.yaw = GAME_CONFIG.camera.defaultYaw;
+        this.deckFovOffset = 0;
         this.cameraMovedRecently = true;
-        const btnCam = document.getElementById('btn-cam-mode');
-        if (btnCam) btnCam.querySelector('.hud-val').textContent = this.cameraModes[0];
+        this._updateCamHudState();
     }
 
     cycleCameraMode() {
         this.camModeIdx = (this.camModeIdx + 1) % this.cameraModes.length;
-        this.tracksideTimer = 999; // Force fresh trackside placement
-        document.body.classList.toggle('deck-view', this.camModeIdx === 1);
-        if (this.camModeIdx === 1) { // fresh forward-facing deck look
+        this.tracksideTimer = 999;
+        const isDeck = (this.camModeIdx === 1);
+        document.body.classList.toggle('deck-view', isDeck);
+
+        if (this.locomotive) {
+            this.locomotive.setDeckView(isDeck);
+        }
+
+        if (isDeck) {
             this.yaw = GAME_CONFIG.camera.defaultYaw;
             this.pitch = GAME_CONFIG.camera.defaultPitch;
+            this.camera.near = 0.08; // Close clipping plane inside cab
+            this.camera.updateProjectionMatrix();
+        } else {
+            this.camera.near = 0.25;
+            this.camera.updateProjectionMatrix();
         }
+
         this.cameraMovedRecently = true;
+        this._updateCamHudState();
+    }
+
+    _updateCamHudState() {
         const btnCam = document.getElementById('btn-cam-mode');
         if (btnCam) btnCam.querySelector('.hud-val').textContent = this.cameraModes[this.camModeIdx];
+
+        // Mode-aware +/- button visibility: hide in Trackside (2) and Drone (3) (B7)
+        const leftHud = document.getElementById('left-camera-hud');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+        const hideZoom = (this.camModeIdx === 2 || this.camModeIdx === 3);
+        if (btnZoomIn) btnZoomIn.style.display = hideZoom ? 'none' : '';
+        if (btnZoomOut) btnZoomOut.style.display = hideZoom ? 'none' : '';
     }
 
     _initHUDButtons() {
         // 1. Start / Stop Controller
         const btnStartStop = document.getElementById('btn-start-stop');
         if (btnStartStop) {
-            btnStartStop.addEventListener('click', () => this.toggleStartStop());
+            btnStartStop.addEventListener('click', () => {
+                if (navigator.vibrate) navigator.vibrate(10);
+                this.toggleStartStop();
+            });
         }
 
-        // 2. Horn Controller (Press & Hold)
+        // 2. Horn Controller (Press & Hold, pointer capture & haptics - N6 / B3)
         const btnHorn = document.getElementById('btn-horn');
         if (btnHorn) {
             const startH = (e) => {
                 e.preventDefault();
+                try { btnHorn.setPointerCapture(e.pointerId); } catch (err) {}
                 btnHorn.classList.add('active');
-                if (this.audioManager) this.audioManager.startHorn();
+                if (navigator.vibrate) navigator.vibrate(10);
+                if (this.audioManager) {
+                    this.audioManager.unlock();
+                    this.audioManager.startHorn();
+                }
             };
-            const stopH = () => {
+            const stopH = (e) => {
+                try { if (e && e.pointerId) btnHorn.releasePointerCapture(e.pointerId); } catch (err) {}
                 btnHorn.classList.remove('active');
                 if (this.audioManager) this.audioManager.stopHorn();
             };
@@ -152,7 +263,10 @@ class GameControls {
         // 3. Light Controller
         const btnLight = document.getElementById('btn-light');
         if (btnLight) {
-            btnLight.addEventListener('click', () => this.toggleLights());
+            btnLight.addEventListener('click', () => {
+                if (navigator.vibrate) navigator.vibrate(10);
+                this.toggleLights();
+            });
         }
 
         // 4. Throttle Slider
@@ -161,10 +275,11 @@ class GameControls {
             throttleSlider.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value) / 100;
                 this.trainPhysics.setThrottleFraction(val);
+                this.cameraMovedRecently = true;
             });
         }
 
-        // 5. Day / Sunset / Night Cycle Button
+        // 5. Day / Night Mode Cycle Button
         const btnDayNight = document.getElementById('btn-day-night');
         if (btnDayNight) {
             btnDayNight.addEventListener('click', () => {
@@ -215,13 +330,41 @@ class GameControls {
             });
         }
 
-        // 10. Left Camera HUD (+, -, Recenter)
+        // 10. Left Camera Navigation (+, -, Recenter)
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomOut = document.getElementById('btn-zoom-out');
         const btnRecenter = document.getElementById('btn-recenter');
         if (btnZoomIn) btnZoomIn.addEventListener('click', () => this.zoom(0.75));
         if (btnZoomOut) btnZoomOut.addEventListener('click', () => this.zoom(1.33));
         if (btnRecenter) btnRecenter.addEventListener('click', () => this.recenter());
+
+        // 11. Mobile Slide-Over Menu Button & Drawer (Section 3.2)
+        const btnMenu = document.getElementById('btn-menu');
+        const menuDrawer = document.getElementById('menu-drawer');
+        const btnMenuClose = document.getElementById('btn-menu-close');
+        if (btnMenu && menuDrawer) {
+            btnMenu.addEventListener('click', () => menuDrawer.classList.toggle('open'));
+        }
+        if (btnMenuClose && menuDrawer) {
+            btnMenuClose.addEventListener('click', () => menuDrawer.classList.remove('open'));
+        }
+
+        const btnResetLayout = document.getElementById('btn-reset-layout');
+        if (btnResetLayout) {
+            btnResetLayout.addEventListener('click', () => {
+                this.resetDockPosition();
+                if (menuDrawer) menuDrawer.classList.remove('open');
+            });
+        }
+
+        const btnLeftHanded = document.getElementById('btn-toggle-left-hand');
+        if (btnLeftHanded) {
+            btnLeftHanded.addEventListener('click', () => {
+                document.body.classList.toggle('left-handed-layout');
+                const isLH = document.body.classList.contains('left-handed-layout');
+                btnLeftHanded.querySelector('.menu-val').textContent = isLH ? 'ON' : 'OFF';
+            });
+        }
     }
 
     toggleStartStop() {
@@ -289,28 +432,47 @@ class GameControls {
         });
     }
 
-    // Long-Tap (500ms) Repositionable Controls Dock with localStorage Persistence
+    // Draggable Dock with Grip-Only Long-Tap & Clamping (B4 & B5)
     _initDraggableDock() {
         const dock = document.getElementById('train-controls-dock');
         if (!dock) return;
+
+        const clampDock = () => {
+            const maxL = Math.max(8, window.innerWidth - dock.offsetWidth - 8);
+            const maxT = Math.max(8, window.innerHeight - dock.offsetHeight - 8);
+            if (dock.style.left && dock.style.top) {
+                const curL = parseInt(dock.style.left, 10);
+                const curT = parseInt(dock.style.top, 10);
+                if (!isNaN(curL) && !isNaN(curT)) {
+                    dock.style.left = Math.max(8, Math.min(maxL, curL)) + 'px';
+                    dock.style.top = Math.max(8, Math.min(maxT, curT)) + 'px';
+                }
+            }
+        };
 
         try {
             const saved = localStorage.getItem('train_dock_pos_v2');
             if (saved) {
                 const { left, top } = JSON.parse(saved);
-                dock.style.left = left + 'px';
-                dock.style.top = top + 'px';
+                const maxL = Math.max(8, window.innerWidth - 320);
+                const maxT = Math.max(8, window.innerHeight - 100);
+                dock.style.left = Math.max(8, Math.min(maxL, left)) + 'px';
+                dock.style.top = Math.max(8, Math.min(maxT, top)) + 'px';
                 dock.style.bottom = 'auto';
                 dock.style.transform = 'none';
             }
         } catch (err) {}
 
+        window.addEventListener('resize', clampDock);
+        window.addEventListener('orientationchange', clampDock);
+
         let holdTimer = null;
         let isDragging = false;
         let startX = 0, startY = 0, origLeft = 0, origTop = 0;
 
+        // B4: ONLY start drag timer from .drag-grip-indicator, NEVER from control buttons or slider!
         dock.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('input')) return;
+            if (!e.target.closest('.drag-grip-indicator')) return;
             startX = e.clientX;
             startY = e.clientY;
             const rect = dock.getBoundingClientRect();
@@ -324,12 +486,13 @@ class GameControls {
                 dock.style.top = origTop + 'px';
                 dock.style.bottom = 'auto';
                 dock.style.transform = 'none';
-            }, 500);
+                if (navigator.vibrate) navigator.vibrate(20);
+            }, 450);
         });
 
         window.addEventListener('pointermove', (e) => {
             if (!isDragging && holdTimer) {
-                if (Math.hypot(e.clientX - startX, e.clientY - startY) > 10) {
+                if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
                     clearTimeout(holdTimer);
                     holdTimer = null;
                 }
@@ -343,7 +506,7 @@ class GameControls {
             dock.style.top = ny + 'px';
         });
 
-        const endDockDrag = () => {
+        const endDrag = () => {
             if (holdTimer) {
                 clearTimeout(holdTimer);
                 holdTimer = null;
@@ -352,33 +515,38 @@ class GameControls {
                 isDragging = false;
                 dock.classList.remove('dragging-mode');
                 try {
-                    const rect = dock.getBoundingClientRect();
-                    localStorage.setItem('train_dock_pos_v2', JSON.stringify({ left: rect.left, top: rect.top }));
+                    localStorage.setItem('train_dock_pos_v2', JSON.stringify({
+                        left: parseInt(dock.style.left, 10),
+                        top: parseInt(dock.style.top, 10)
+                    }));
                 } catch (err) {}
             }
         };
-        window.addEventListener('pointerup', endDockDrag);
-        window.addEventListener('pointercancel', endDockDrag);
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
     }
 
-    _applyFov(target) {
-        const cam = this.camera;
-        cam.fov += (target - cam.fov) * 0.08;
-        if (Math.abs(cam.fov - this._lastFov) > 0.08) {
-            this._lastFov = cam.fov;
-            cam.updateProjectionMatrix();
-        }
+    resetDockPosition() {
+        const dock = document.getElementById('train-controls-dock');
+        if (!dock) return;
+        localStorage.removeItem('train_dock_pos_v2');
+        dock.style.left = '';
+        dock.style.top = '';
+        dock.style.bottom = '';
+        dock.style.transform = '';
     }
 
     update(dt) {
-        // Update Speedometer DOM only when integer value changes
-        const kmh = this.trainPhysics.getKmh();
-        if (kmh !== this.lastDisplayedKmh && this.speedValEl) {
-            this.lastDisplayedKmh = kmh;
-            this.speedValEl.textContent = kmh;
+        // 1. Update speedometer DOM
+        if (this.speedValEl) {
+            const kmh = Math.round(this.trainPhysics.speed * 3.6);
+            if (kmh !== this.lastDisplayedKmh) {
+                this.speedValEl.textContent = kmh;
+                this.lastDisplayedKmh = kmh;
+            }
         }
 
-        // Update Audio Engine RPM
+        // 2. Throttled audio engine RPM updates
         if (this.audioManager) {
             this.audioManager.updateRPM(this.trainPhysics.getSpeedRatio(), this.trainPhysics.isRunning);
         }
@@ -386,38 +554,41 @@ class GameControls {
         const trainPos = this.trainPhysics.currentPosition;
         const trainTan = this.trainPhysics.currentTangent;
 
-        // Mode 1: Front-deck driver POV (eye above the hood nose, sees track ahead)
+        // Mode 1: Cab-Forward Cockpit Driver POV (Section 4.3 & B8)
         if (this.camModeIdx === 1) {
-            const tx = trainTan.x, tz = trainTan.z;
-            const h = Math.hypot(tx, tz) || 1;
-            const fx = tx / h, fz = tz / h;           // horizontal forward
-            const slope = trainTan.y / h;              // rise per metre
+            // Local eye in locomotive frame at driver seat: x = -0.55m, y = 3.25m, z = 4.2m
+            this.locomotive.bodyGroup.localToWorld(this._deckEye.set(-0.55, 3.25, 4.2));
+
             const sp = this.trainPhysics.getSpeedRatio();
             const t = performance.now() * 0.001;
-            const vib = sp * 0.014;                    // rail vibration, scales with speed
-            const sway = Math.sin(t * 7.3) * 0.012 * sp;
-            const EYE_Z = 3.2, EYE_Y = 4.0;            // local metres on the locomotive
+            const vib = sp * 0.012;
+            const sway = Math.sin(t * 7.2) * 0.014 * sp;
+            const bump = (Math.sin(t * 38) + 0.5 * Math.sin(t * 21)) * vib;
+
             this.camera.position.set(
-                trainPos.x + fx * EYE_Z + fz * sway,
-                trainPos.y + EYE_Y + slope * EYE_Z + (Math.sin(t * 41) + 0.6 * Math.sin(t * 23.7)) * vib,
-                trainPos.z + fz * EYE_Z - fx * sway
+                this._deckEye.x + sway,
+                this._deckEye.y + bump,
+                this._deckEye.z + sway
             );
+
             // Drag = look around (yaw capped to +/-100 deg, pitch to +/-0.45 rad)
             const a = Math.max(-1.75, Math.min(1.75, this.yaw - GAME_CONFIG.camera.defaultYaw));
             const lp = Math.max(-0.45, Math.min(0.45, (this.pitch - GAME_CONFIG.camera.defaultPitch) * 0.9));
-            const ca = Math.cos(a), sa = Math.sin(a);
-            this.targetLookAt.set(
-                this.camera.position.x + (fx * ca + fz * sa) * 40.0,
-                this.camera.position.y + slope * 40.0 + lp * 40.0 - 0.9,
-                this.camera.position.z + (-fx * sa + fz * ca) * 40.0
-            );
-            this.camera.lookAt(this.targetLookAt);
-            this._applyFov(52 + sp * 8.0);
+
+            // Look target computed in locomotive local orientation
+            this._deckLook.set(Math.sin(a) * 40.0, lp * 40.0, Math.cos(a) * 40.0);
+            this.locomotive.bodyGroup.localToWorld(this._deckLook);
+            this.camera.lookAt(this._deckLook);
+
+            const targetFov = this._fitFov(78) + (this.deckFovOffset || 0) + sp * 5.0;
+            this._applyFov(targetFov);
             return;
         }
-        this._applyFov(52 + this.trainPhysics.getSpeedRatio() * 5.0);
 
-        // Mode 2: Cinematic Trackside Fly-by Camera
+        // Orbit FOV adjusted to prevent tunnel vision on mobile (B9)
+        this._applyFov(this._fitFov(70) + this.trainPhysics.getSpeedRatio() * 4.0);
+
+        // Mode 2: Trackside Fly-by Camera
         if (this.camModeIdx === 2) {
             this.tracksideTimer += dt;
             const distSq = this.camera.position.distanceToSquared(trainPos);
@@ -450,28 +621,24 @@ class GameControls {
             return;
         }
 
-        // Mode 0: Smooth 360° Orbit Chase Camera (Zero-allocation math)
-        const dDiff = this.targetDistance - this.distance;
-        if (Math.abs(dDiff) > 0.01) {
-            this.distance += dDiff * (1.0 - Math.exp(-dt * 8.0));
-            this.cameraMovedRecently = true;
-        } else {
-            this.distance = this.targetDistance;
-        }
+        // Mode 0: Smooth Orbit Chase Camera
+        const sp = this.trainPhysics.getSpeedRatio();
+        this.targetDistance += (sp * 5.0 - (this.targetDistance - GAME_CONFIG.camera.defaultDistance) * 0.1) * dt;
+        this.distance += (this.targetDistance - this.distance) * Math.min(1.0, dt * 10.0);
 
-        this.targetLookAt.set(trainPos.x, trainPos.y + 2.2, trainPos.z);
-        if (this.currentLookAt.lengthSq() === 0) {
-            this.currentLookAt.copy(this.targetLookAt);
-        } else {
-            this.currentLookAt.lerp(this.targetLookAt, Math.min(1.0, dt * 12.0));
-        }
+        const cosP = Math.cos(this.pitch);
+        const sinP = Math.sin(this.pitch);
+        const cosY = Math.cos(this.yaw);
+        const sinY = Math.sin(this.yaw);
 
-        const cosPitch = Math.cos(this.pitch);
-        const cx = this.currentLookAt.x + this.distance * Math.sin(this.yaw) * cosPitch;
-        const cy = this.currentLookAt.y + this.distance * Math.sin(this.pitch);
-        const cz = this.currentLookAt.z + this.distance * Math.cos(this.yaw) * cosPitch;
+        this.targetLookAt.set(trainPos.x, trainPos.y + 2.1, trainPos.z);
+        this.currentLookAt.lerp(this.targetLookAt, Math.min(1.0, dt * 14.0));
 
-        this.camera.position.set(cx, cy, cz);
+        this.camera.position.set(
+            this.currentLookAt.x + this.distance * cosP * sinY,
+            this.currentLookAt.y + this.distance * sinP,
+            this.currentLookAt.z + this.distance * cosP * cosY
+        );
         this.camera.lookAt(this.currentLookAt);
     }
 }

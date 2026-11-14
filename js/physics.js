@@ -59,6 +59,12 @@ class TrainPhysics {
         this.targetSpeed = Math.max(0.0, Math.min(GAME_CONFIG.train.maxSpeed, targetSpeed));
     }
 
+    restoreProgress(u) {
+        if (!Number.isFinite(u)) return;
+        this.progress = ((u % 1.0) + 1.0) % 1.0;
+        this._syncAllCarPositions();
+    }
+
     update(dt) {
         const delta = Math.min(dt, 0.1);
 

@@ -1,5 +1,7 @@
-// train.js - Visually Rich, Ultra-Low-Draw-Call T3M2M-005 Diesel Locomotive & 5 Royal Heritage Carriages
-// Uses high-detail procedural Canvas textures + emissive maps instead of expensive per-coach PointLights!
+// train.js - Visually Rich, Ultra-Low-Draw-Call Bangladeshi Livery Diesel Locomotive & 5 Carriages
+// Features: Cab-Forward Layout (Option A), Authentic Bangladeshi Blue-Red Livery ("বাংলাদেশ রেলওয়ে"),
+// Twin Headlights with Volumetric Cones & Ground Glow, Detailed 3D Driver Deck Interior with Animated Instrument Needles & Windshield Wipers.
+
 class TrainLocomotive {
     constructor(scene, physics) {
         this.scene = scene;
@@ -16,144 +18,71 @@ class TrainLocomotive {
         this.wheelMeshes = [];
         this.roofFans = [];
 
-        // Master Lighting & Emissive Materials (Zero per-carriage PointLight shader overhead!)
+        // Master Lighting & Emissive Materials
         this.lightsOn = false;
         this.headlight = null;
-        this.headlightBeamMesh = null;
+        this.headlightBeams = [];
+        this.groundGlow = null;
+        this.markerLamps = [];
         this.emissiveMaterials = [];
 
         // 5 Attached Passenger Carriages
         this.carriages = [];
 
-        // Lightweight pooled exhaust smoke particles (16 puffs)
+        // Lightweight pooled exhaust smoke particles (14 puffs)
         this.smokePool = [];
         this.smokeTimer = 0;
+
+        // Cab interior & driver deck view state
+        this.isDeckViewActive = false;
+        this.cabInterior = null;
+        this.cabExteriorFront = null;
+        this.speedNeedle = null;
+        this.brakeNeedle = null;
+        this.amperageNeedle = null;
+        this.throttleHandle = null;
+        this.brakeHandle = null;
+        this.warningLampMat = null;
+        this.wiperArm = null;
 
         this._buildSharedTextures();
         this.buildLocomotive();
         this.buildCarriages();
         this._initExhaustSmoke();
         this.setLights(false);
+        this.setDeckView(false);
         this.forceUpdate();
+
+        // Listen for Bengali font readiness to redraw crisp Bengali livery text
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => this.redrawLivery());
+        }
     }
 
     _buildSharedTextures() {
-        // 1. Passenger Coach Side Texture + Emissive Window Map (Replaces 40 window meshes & 5 PointLights!)
+        // 1. Bangladeshi Passenger Coach Side Texture (Royal Blue, Red Band, White Pin Line)
         const cDiff = document.createElement('canvas');
         cDiff.width = 512; cDiff.height = 128;
-        const g = cDiff.getContext('2d');
-
-        // Royal Navy base
-        g.fillStyle = '#182b42';
-        g.fillRect(0, 0, 512, 128);
-
-        // Roof edge & lower chassis skirt
-        g.fillStyle = '#242b35';
-        g.fillRect(0, 0, 512, 14);
-        g.fillStyle = '#101822';
-        g.fillRect(0, 108, 512, 20);
-
-        // Brushed Champagne Gold Waist & Pin Stripes
-        g.fillStyle = '#e0b658';
-        g.fillRect(0, 72, 512, 7);
-        g.fillRect(0, 22, 512, 2.5);
-        g.fillStyle = '#c83e37';
-        g.fillRect(0, 79, 512, 3);
-
-        // End Entry Doors
-        [14, 466].forEach(dx => {
-            g.fillStyle = '#122133';
-            g.fillRect(dx, 26, 32, 78);
-            g.strokeStyle = '#e0b658';
-            g.lineWidth = 1.5;
-            g.strokeRect(dx, 26, 32, 78);
-            g.fillStyle = '#6289a8';
-            g.fillRect(dx + 6, 33, 20, 28);
-        });
+        this.cCoachCtx = cDiff.getContext('2d');
+        this.coachCanvas = cDiff;
 
         // Emissive Window Canvas
         const cEmis = document.createElement('canvas');
         cEmis.width = 512; cEmis.height = 128;
-        const ge = cEmis.getContext('2d');
-        ge.fillStyle = '#000000';
-        ge.fillRect(0, 0, 512, 128);
+        this.cEmisCtx = cEmis.getContext('2d');
+        this.coachEmisCanvas = cEmis;
 
-        // 6 Panoramic Bay Windows
-        for (let i = 0; i < 6; i++) {
-            const wx = 64 + i * 64;
-            // Frame
-            g.fillStyle = '#0d1622';
-            g.fillRect(wx, 29, 48, 36);
-            // Glass
-            const grad = g.createLinearGradient(wx, 31, wx, 63);
-            grad.addColorStop(0, '#5a82a6');
-            grad.addColorStop(1, '#9ab8d4');
-            g.fillStyle = grad;
-            g.fillRect(wx + 2, 31, 44, 32);
-            // Mullion bar
-            g.fillStyle = '#c8d6e5';
-            g.fillRect(wx + 23, 31, 2, 32);
-            // Specular diagonal reflection
-            g.fillStyle = 'rgba(255,255,255,0.35)';
-            g.beginPath();
-            g.moveTo(wx + 6, 31); g.lineTo(wx + 18, 31);
-            g.lineTo(wx + 10, 63); g.lineTo(wx + 2, 63);
-            g.closePath(); g.fill();
-
-            // Warm interior glow in emissive map
-            ge.fillStyle = '#ffe299';
-            ge.fillRect(wx + 2, 31, 44, 32);
-        }
-
-        // Door windows in emissive map
-        [14, 466].forEach(dx => {
-            ge.fillStyle = '#ffd27d';
-            ge.fillRect(dx + 6, 33, 20, 28);
-        });
-
-        this.coachSideTex = new THREE.CanvasTexture(cDiff);
-        this.coachSideEmis = new THREE.CanvasTexture(cEmis);
-
-        // 2. Locomotive Hood Side Texture (Louvres, Warning Stripes, Number Plate "T3M2M-005")
+        // 2. Locomotive Hood Side Texture (Louvres, Crimson Band, Bengali Number Badge "২৯০৫")
         const lCanvas = document.createElement('canvas');
         lCanvas.width = 512; lCanvas.height = 128;
-        const lg = lCanvas.getContext('2d');
-        lg.fillStyle = '#16283d';
-        lg.fillRect(0, 0, 512, 128);
-        // Louvred vents
-        lg.fillStyle = '#0e1b29';
-        for (let i = 0; i < 5; i++) {
-            const vx = 45 + i * 82;
-            lg.fillRect(vx, 22, 58, 44);
-            lg.fillStyle = '#243a54';
-            for (let k = 0; k < 6; k++) {
-                lg.fillRect(vx + 4, 26 + k * 6.5, 50, 3);
-            }
-            lg.fillStyle = '#0e1b29';
-        }
-        // Golden caution stripe & crimson trim
-        lg.fillStyle = '#facc15';
-        lg.fillRect(0, 78, 512, 12);
-        lg.fillStyle = '#ef4444';
-        lg.fillRect(0, 90, 512, 4);
-        // Number badge
-        lg.fillStyle = '#0b1420';
-        lg.fillRect(200, 72, 112, 24);
-        lg.strokeStyle = '#facc15';
-        lg.lineWidth = 2;
-        lg.strokeRect(200, 72, 112, 24);
-        lg.fillStyle = '#ffffff';
-        lg.font = 'bold 14px sans-serif';
-        lg.textAlign = 'center';
-        lg.textBaseline = 'middle';
-        lg.fillText('T3M2M-005', 256, 84);
-        this.locoHoodTex = new THREE.CanvasTexture(lCanvas);
+        this.cLocoCtx = lCanvas.getContext('2d');
+        this.locoCanvas = lCanvas;
 
-        // 3. Hazard V-Chevron Buffer Beam Texture
+        // 3. Hazard Buffer Beam Texture
         const bCanvas = document.createElement('canvas');
         bCanvas.width = 256; bCanvas.height = 64;
         const bg = bCanvas.getContext('2d');
-        bg.fillStyle = '#b91c1c';
+        bg.fillStyle = '#c8102e';
         bg.fillRect(0, 0, 256, 64);
         bg.fillStyle = '#f8fafc';
         for (let x = -64; x < 320; x += 36) {
@@ -164,7 +93,7 @@ class TrainLocomotive {
         }
         this.hazardTex = new THREE.CanvasTexture(bCanvas);
 
-        // 4. Fake Soft Drop-Shadow Texture (Zero-cost ground shadow under every car)
+        // 4. Fake Soft Drop-Shadow Texture
         const sCanvas = document.createElement('canvas');
         sCanvas.width = 64; sCanvas.height = 64;
         const sg = sCanvas.getContext('2d');
@@ -174,6 +103,174 @@ class TrainLocomotive {
         sg.fillStyle = sGrad;
         sg.fillRect(0, 0, 64, 64);
         this.shadowTex = new THREE.CanvasTexture(sCanvas);
+
+        // 5. Driver Desk Gauge Dials Canvas
+        const dCanvas = document.createElement('canvas');
+        dCanvas.width = 512; dCanvas.height = 128;
+        const dg = dCanvas.getContext('2d');
+        dg.fillStyle = '#1c222b';
+        dg.fillRect(0, 0, 512, 128);
+
+        // 3 Circular Dial Faces: Speedometer, Brake Cylinder, Ammeter
+        const dialCenters = [100, 256, 412];
+        const dialLabels = ['KM/H', 'BRAKE BAR', 'MOTOR AMP'];
+        dialCenters.forEach((cx, idx) => {
+            dg.fillStyle = '#0f141c';
+            dg.beginPath(); dg.arc(cx, 64, 50, 0, Math.PI * 2); dg.fill();
+            dg.strokeStyle = '#64748b'; dg.lineWidth = 3; dg.stroke();
+
+            // Dial scale ticks
+            dg.strokeStyle = '#e2e8f0'; dg.lineWidth = 2;
+            for (let a = -2.2; a <= 2.2; a += 0.55) {
+                const x1 = cx + Math.sin(a) * 38;
+                const y1 = 64 - Math.cos(a) * 38;
+                const x2 = cx + Math.sin(a) * 46;
+                const y2 = 64 - Math.cos(a) * 46;
+                dg.beginPath(); dg.moveTo(x1, y1); dg.lineTo(x2, y2); dg.stroke();
+            }
+
+            dg.fillStyle = '#94a3b8';
+            dg.font = 'bold 11px sans-serif';
+            dg.textAlign = 'center';
+            dg.fillText(dialLabels[idx], cx, 88);
+        });
+        this.dashTex = new THREE.CanvasTexture(dCanvas);
+
+        this.coachSideTex = new THREE.CanvasTexture(this.coachCanvas);
+        this.coachSideEmis = new THREE.CanvasTexture(this.coachEmisCanvas);
+        this.locoHoodTex = new THREE.CanvasTexture(this.locoCanvas);
+
+        this.redrawLivery();
+    }
+
+    redrawLivery() {
+        const g = this.cCoachCtx;
+        // --- 1. Passenger Coach Side ---
+        // Royal Blue upper body
+        g.fillStyle = '#1b4f9c';
+        g.fillRect(0, 0, 512, 128);
+
+        // Light grey roof band
+        g.fillStyle = '#8a9099';
+        g.fillRect(0, 0, 512, 14);
+
+        // Dark chassis underframe
+        g.fillStyle = '#1a1d22';
+        g.fillRect(0, 108, 512, 20);
+
+        // White pin line above waist
+        g.fillStyle = '#f4f4f0';
+        g.fillRect(0, 74, 512, 3);
+
+        // Crimson red lower waist band
+        g.fillStyle = '#c8102e';
+        g.fillRect(0, 77, 512, 31);
+
+        // White pin line below red band
+        g.fillStyle = '#f4f4f0';
+        g.fillRect(0, 107, 512, 1.5);
+
+        // White end passenger entry doors
+        [14, 466].forEach(dx => {
+            g.fillStyle = '#102e5c';
+            g.fillRect(dx, 26, 32, 78);
+            g.strokeStyle = '#f4f4f0';
+            g.lineWidth = 2;
+            g.strokeRect(dx, 26, 32, 78);
+            g.fillStyle = '#6289a8';
+            g.fillRect(dx + 6, 33, 20, 28);
+        });
+
+        // Bengali Rail text & Class marker in crisp white
+        g.fillStyle = '#ffffff';
+        g.font = "bold 15px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
+        g.textAlign = 'left';
+        g.textBaseline = 'middle';
+        g.fillText('বাংলাদেশ রেলওয়ে', 140, 93);
+
+        g.font = "bold 13px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
+        g.fillText('শোভন', 340, 93);
+
+        g.font = "bold 14px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
+        g.fillText('১২৪৫', 415, 93);
+
+        // Emissive Window Canvas
+        const ge = this.cEmisCtx;
+        ge.fillStyle = '#000000';
+        ge.fillRect(0, 0, 512, 128);
+
+        // 6 Panoramic Bay Windows
+        for (let i = 0; i < 6; i++) {
+            const wx = 64 + i * 64;
+            g.fillStyle = '#0d1622';
+            g.fillRect(wx, 29, 48, 36);
+
+            const grad = g.createLinearGradient(wx, 31, wx, 63);
+            grad.addColorStop(0, '#5a82a6');
+            grad.addColorStop(1, '#9ab8d4');
+            g.fillStyle = grad;
+            g.fillRect(wx + 2, 31, 44, 32);
+
+            g.fillStyle = '#c8d6e5';
+            g.fillRect(wx + 23, 31, 2, 32);
+
+            g.fillStyle = 'rgba(255,255,255,0.35)';
+            g.beginPath();
+            g.moveTo(wx + 6, 31); g.lineTo(wx + 18, 31);
+            g.lineTo(wx + 10, 63); g.lineTo(wx + 2, 63);
+            g.closePath(); g.fill();
+
+            // Warm coach interior glow
+            ge.fillStyle = '#ffe299';
+            ge.fillRect(wx + 2, 31, 44, 32);
+        }
+
+        [14, 466].forEach(dx => {
+            ge.fillStyle = '#ffd27d';
+            ge.fillRect(dx + 6, 33, 20, 28);
+        });
+
+        // --- 2. Locomotive Hood Side ---
+        const lg = this.cLocoCtx;
+        lg.fillStyle = '#1b4f9c'; // Royal Blue
+        lg.fillRect(0, 0, 512, 128);
+
+        // Louvred cooling vents
+        lg.fillStyle = '#0d1d33';
+        for (let i = 0; i < 5; i++) {
+            const vx = 45 + i * 82;
+            lg.fillRect(vx, 22, 58, 44);
+            lg.fillStyle = '#203a5e';
+            for (let k = 0; k < 6; k++) {
+                lg.fillRect(vx + 4, 26 + k * 6.5, 50, 3);
+            }
+            lg.fillStyle = '#0d1d33';
+        }
+
+        // White pin line & Red band
+        lg.fillStyle = '#f4f4f0';
+        lg.fillRect(0, 75, 512, 3);
+        lg.fillStyle = '#c8102e';
+        lg.fillRect(0, 78, 512, 28);
+        lg.fillStyle = '#f4f4f0';
+        lg.fillRect(0, 106, 512, 2);
+
+        // Bengali locomotive number badge "২৯০৫"
+        lg.fillStyle = '#0b1420';
+        lg.fillRect(200, 74, 112, 24);
+        lg.strokeStyle = '#f4f4f0';
+        lg.lineWidth = 2;
+        lg.strokeRect(200, 74, 112, 24);
+
+        lg.fillStyle = '#ffffff';
+        lg.font = "bold 17px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
+        lg.textAlign = 'center';
+        lg.textBaseline = 'middle';
+        lg.fillText('২৯০৫', 256, 86);
+
+        this.coachSideTex.needsUpdate = true;
+        this.coachSideEmis.needsUpdate = true;
+        this.locoHoodTex.needsUpdate = true;
     }
 
     buildLocomotive() {
@@ -182,12 +279,12 @@ class TrainLocomotive {
 
         const bodyMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainBody });
         const hoodSideMat = new THREE.MeshLambertMaterial({ map: this.locoHoodTex });
-        const stripeMat = new THREE.MeshLambertMaterial({ color: 0xfacc15 });
+        const redMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainAccent });
         const deckMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainFrame });
         const roofMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainRoof });
         const hazardMat = new THREE.MeshLambertMaterial({ map: this.hazardTex });
         const darkMat = new THREE.MeshLambertMaterial({ color: 0x1a1e24 });
-        const handrailMat = new THREE.MeshLambertMaterial({ color: 0xfacc15 });
+        const handrailMat = new THREE.MeshLambertMaterial({ color: 0xf4f4f0 });
 
         // Soft Ground Drop Shadow
         const shadowPlane = new THREE.Mesh(
@@ -204,71 +301,117 @@ class TrainLocomotive {
         this.bodyGroup.add(deck);
 
         const fuelTank = new THREE.Mesh(new THREE.BoxGeometry(W * 0.72, 0.55, 3.8), darkMat);
-        fuelTank.position.set(0, 0.85, 0.2);
+        fuelTank.position.set(0, 0.85, -0.6);
         this.bodyGroup.add(fuelTank);
 
-        // Side Sills
+        // Side Sills (Red Accent Line)
         [-W * 0.5 - 0.02, W * 0.5 + 0.02].forEach(x => {
-            const sill = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, L), stripeMat);
+            const sill = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, L), redMat);
             sill.position.set(x, 1.34, 0);
             this.bodyGroup.add(sill);
         });
 
-        // Front & Rear Hazard Buffer Beams
+        // Front & Rear Hazard Buffer Beams (Crimson & White)
         [L * 0.5 + 0.08, -L * 0.5 - 0.08].forEach(z => {
             const beam = new THREE.Mesh(new THREE.BoxGeometry(W, 0.65, 0.18), hazardMat);
             beam.position.set(0, 0.96, z);
             this.bodyGroup.add(beam);
         });
 
-        // 2. Long Engine Hood with Textured Louvres
-        const hoodL = 7.7, hoodW = 2.55, hoodH = 2.15, hoodZ = 0.95;
+        // Front Buffer Beam Marker Lamps (Section 20.2)
+        const frontZ = L * 0.5;
+        const markerLensMat = new THREE.MeshBasicMaterial({ color: 0x661111 });
+        [-1.32, 1.32].forEach(x => {
+            const ml = new THREE.Mesh(new THREE.CircleGeometry(0.09, 8), markerLensMat);
+            ml.position.set(x, 1.05, frontZ + 0.18);
+            this.bodyGroup.add(ml);
+            this.markerLamps.push(ml);
+        });
+
+        // =========================================================================
+        // CAB-FORWARD LAYOUT (Option A - Section 4.1 & 20)
+        // Cab is at the front (z = +2.15 to +5.35), Hood is behind the cab (z = -5.35 to +2.15)
+        // =========================================================================
+
+        // 2. Long Engine Hood (Behind Cab: z: -5.35 to +2.15, length 7.5m, center z = -1.6m)
+        const hoodL = 7.5, hoodW = 2.55, hoodH = 2.15, hoodZ = -1.6;
         const hoodMats = [hoodSideMat, hoodSideMat, roofMat, darkMat, bodyMat, bodyMat];
         const hood = new THREE.Mesh(new THREE.BoxGeometry(hoodW, hoodH, hoodL), hoodMats);
         hood.position.set(0, 2.6, hoodZ);
         this.bodyGroup.add(hood);
 
-        // Dual Prominent Circular Cooling Fan Housings on Hood Roof + Rotating Fan Blades
-        [-0.6, 2.4].forEach(fz => {
+        // Dual Circular Cooling Fan Housings on Hood Roof + Rotating Blades
+        [-3.8, -1.4].forEach(fz => {
             const fanRing = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.72, 0.18, 12), roofMat);
             fanRing.position.set(0, 3.74, fz);
             this.bodyGroup.add(fanRing);
 
             const bladeGroup = new THREE.Group();
             bladeGroup.position.set(0, 3.79, fz);
-            const b1 = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.03, 0.16), stripeMat);
-            const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 1.1), stripeMat);
+            const b1 = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.03, 0.16), redMat);
+            const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 1.1), redMat);
             bladeGroup.add(b1, b2);
             this.bodyGroup.add(bladeGroup);
             this.roofFans.push(bladeGroup);
         });
 
-        // Exhaust Stack
+        // Exhaust Stack on Hood Roof
         const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.38, 8), darkMat);
-        stack.position.set(0, 3.82, -1.8);
+        stack.position.set(0, 3.82, 0.6);
         this.bodyGroup.add(stack);
 
-        // Side Walkway Safety Handrails
+        // Hood Walkway Handrails
         [-W * 0.46, W * 0.46].forEach(x => {
-            const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, hoodL + 0.4), handrailMat);
+            const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, hoodL + 0.2), handrailMat);
             topRail.position.set(x, 2.35, hoodZ);
             this.bodyGroup.add(topRail);
-            for (let sz = -2.6; sz <= 4.6; sz += 1.8) {
+            for (let sz = -5.0; sz <= 1.8; sz += 1.7) {
                 const stanchion = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.85, 0.04), handrailMat);
                 stanchion.position.set(x, 1.92, sz);
                 this.bodyGroup.add(stanchion);
             }
         });
 
-        // 3. Elevated Driver Cab with Curved Roof
-        const cabL = 3.2, cabW = 2.92, cabH = 2.52, cabZ = -3.75;
-        const cab = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), bodyMat);
-        cab.position.set(0, 2.8, cabZ);
-        this.bodyGroup.add(cab);
+        // 3. Elevated Driver Cab at Front (z: +2.15 to +5.35, center cabZ = +3.75m)
+        const cabL = 3.2, cabW = 2.92, cabH = 2.52, cabZ = 3.75;
 
+        // Exterior Cab Group (walls, roof, windows)
+        const extCab = new THREE.Group();
+        this.bodyGroup.add(extCab);
+
+        // Rear & Side Walls
+        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, 0.12), bodyMat);
+        rearWall.position.set(0, 2.8, cabZ - cabL * 0.5);
+        extCab.add(rearWall);
+
+        [-cabW * 0.5 + 0.06, cabW * 0.5 - 0.06].forEach(x => {
+            const sWall = new THREE.Mesh(new THREE.BoxGeometry(0.12, cabH, cabL), bodyMat);
+            sWall.position.set(x, 2.8, cabZ);
+            extCab.add(sWall);
+        });
+
+        // Curved Cab Roof
         const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(cabW + 0.12, 0.18, cabL + 0.2), roofMat);
         cabRoof.position.set(0, 4.12, cabZ);
-        this.bodyGroup.add(cabRoof);
+        extCab.add(cabRoof);
+
+        // Front Cab Wall with Windshield Opening
+        this.cabExteriorFront = new THREE.Group();
+        const fLower = new THREE.Mesh(new THREE.BoxGeometry(cabW, 1.15, 0.14), redMat);
+        fLower.position.set(0, 2.12, cabZ + cabL * 0.5);
+        const fUpper = new THREE.Mesh(new THREE.BoxGeometry(cabW, 0.32, 0.14), bodyMat);
+        fUpper.position.set(0, 3.96, cabZ + cabL * 0.5);
+        const aPillarL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.55, 0.14), bodyMat);
+        aPillarL.position.set(-cabW * 0.5 + 0.12, 3.05, cabZ + cabL * 0.5);
+        const aPillarR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.55, 0.14), bodyMat);
+        aPillarR.position.set(cabW * 0.5 - 0.12, 3.05, cabZ + cabL * 0.5);
+        this.cabExteriorFront.add(fLower, fUpper, aPillarL, aPillarR);
+        extCab.add(this.cabExteriorFront);
+
+        // Short Front Nose / Veranda in front of Cab (z: +5.35 to +6.1)
+        const noseBox = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.1, 0.75), redMat);
+        noseBox.position.set(0, 1.88, cabZ + cabL * 0.5 + 0.38);
+        this.bodyGroup.add(noseBox);
 
         // Cab Windows (Emissive-ready)
         const cabWinMat = new THREE.MeshLambertMaterial({
@@ -278,62 +421,172 @@ class TrainLocomotive {
         });
         this.emissiveMaterials.push(cabWinMat);
 
-        [-0.68, 0.68].forEach(x => {
-            const fWin = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.72, 0.06), cabWinMat);
-            fWin.position.set(x, 3.32, cabZ + cabL * 0.5 + 0.02);
-            this.bodyGroup.add(fWin);
-
-            const rWin = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.72, 0.06), cabWinMat);
-            rWin.position.set(x, 3.32, cabZ - cabL * 0.5 - 0.02);
-            this.bodyGroup.add(rWin);
-        });
-
+        // Side Windows
         [-cabW * 0.5 - 0.02, cabW * 0.5 + 0.02].forEach(x => {
-            const sWin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 1.5), cabWinMat);
-            sWin.position.set(x, 3.32, cabZ);
-            this.bodyGroup.add(sWin);
+            const sWin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 1.4), cabWinMat);
+            sWin.position.set(x, 3.32, cabZ + 0.2);
+            extCab.add(sWin);
         });
 
-        // 4. Locomotive Headlight + Volumetric Light Cone Mesh
-        const noseZ = hoodZ + hoodL * 0.5;
-        const hlHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.26, 10), darkMat);
-        hlHousing.rotateX(Math.PI * 0.5);
-        hlHousing.position.set(0, 3.45, noseZ + 0.12);
-        this.bodyGroup.add(hlHousing);
+        // =========================================================================
+        // 4. CAB INTERIOR & DRIVER DECK (Section 4.2)
+        // Visible in Deck POV (camModeIdx === 1), gives authentic simulator cockpit feel
+        // =========================================================================
+        this.cabInterior = new THREE.Group();
+        this.cabInterior.position.set(0, 0, cabZ);
 
-        this.headlightLensMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
-        const hlLens = new THREE.Mesh(new THREE.CircleGeometry(0.19, 10), this.headlightLensMat);
-        hlLens.position.set(0, 3.45, noseZ + 0.26);
-        this.bodyGroup.add(hlLens);
+        // Cab Floor
+        const cabFloor = new THREE.Mesh(new THREE.BoxGeometry(cabW - 0.16, 0.1, cabL - 0.2), darkMat);
+        cabFloor.position.set(0, 1.54, 0);
+        this.cabInterior.add(cabFloor);
 
-        // Volumetric light cone (zero shader cost!)
-        const coneGeo = new THREE.ConeGeometry(4.2, 28, 12, 1, true);
-        coneGeo.rotateX(-Math.PI * 0.5);
-        coneGeo.translate(0, -1.2, 14.2);
-        this.headlightBeamMesh = new THREE.Mesh(
-            coneGeo,
-            new THREE.MeshBasicMaterial({
-                color: 0xfff5cc,
-                transparent: true,
-                opacity: 0.13,
-                side: THREE.DoubleSide,
-                depthWrite: false,
-                blending: THREE.AdditiveBlending
-            })
+        // Driver Desk Console at Front Wall
+        const deskGroup = new THREE.Group();
+        deskGroup.position.set(0, 2.42, cabL * 0.5 - 0.32);
+
+        const deskBase = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.85, 0.65), darkMat);
+        deskBase.position.set(0, -0.25, 0);
+        deskGroup.add(deskBase);
+
+        // Sloped Instrument Panel
+        const panelMat = new THREE.MeshLambertMaterial({ map: this.dashTex });
+        const dashPanel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.42, 0.08), panelMat);
+        dashPanel.rotation.x = -Math.PI * 0.22;
+        dashPanel.position.set(0, 0.22, 0.12);
+        deskGroup.add(dashPanel);
+
+        // 3D Animated Needles on Instrument Dials
+        const needleMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        const needleGeo = new THREE.BoxGeometry(0.012, 0.11, 0.01);
+        needleGeo.translate(0, 0.045, 0);
+
+        this.speedNeedle = new THREE.Mesh(needleGeo, needleMat);
+        this.speedNeedle.position.set(-0.72, 0.22, 0.16);
+        this.speedNeedle.rotation.x = -Math.PI * 0.22;
+        deskGroup.add(this.speedNeedle);
+
+        this.brakeNeedle = new THREE.Mesh(needleGeo, needleMat);
+        this.brakeNeedle.position.set(0.0, 0.22, 0.16);
+        this.brakeNeedle.rotation.x = -Math.PI * 0.22;
+        deskGroup.add(this.brakeNeedle);
+
+        this.amperageNeedle = new THREE.Mesh(needleGeo, needleMat);
+        this.amperageNeedle.position.set(0.72, 0.22, 0.16);
+        this.amperageNeedle.rotation.x = -Math.PI * 0.22;
+        deskGroup.add(this.amperageNeedle);
+
+        // Throttle Handle & Brake Lever
+        const leverMat = new THREE.MeshLambertMaterial({ color: 0xe0b658 });
+        const leverGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.24, 6);
+        leverGeo.translate(0, 0.11, 0);
+
+        this.throttleHandle = new THREE.Mesh(leverGeo, leverMat);
+        this.throttleHandle.position.set(-0.42, 0.18, 0.18);
+        deskGroup.add(this.throttleHandle);
+
+        this.brakeHandle = new THREE.Mesh(leverGeo, redMat);
+        this.brakeHandle.position.set(-0.24, 0.18, 0.18);
+        deskGroup.add(this.brakeHandle);
+
+        // Warning Indicator Lamp (toggles with LIGHTS)
+        this.warningLampMat = new THREE.MeshBasicMaterial({ color: 0x331100 });
+        const warnLamp = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), this.warningLampMat);
+        warnLamp.position.set(0.38, 0.26, 0.18);
+        deskGroup.add(warnLamp);
+
+        this.cabInterior.add(deskGroup);
+
+        // Windshield Glass with Faint Reflection Tint
+        const windGlass = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.4, 1.35),
+            new THREE.MeshBasicMaterial({ color: 0x6ba8d9, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
         );
-        this.headlightBeamMesh.position.set(0, 3.45, noseZ + 0.26);
-        this.bodyGroup.add(this.headlightBeamMesh);
+        windGlass.position.set(0, 3.15, cabL * 0.5 - 0.02);
+        this.cabInterior.add(windGlass);
 
-        // Single Forward SpotLight
-        this.headlight = new THREE.SpotLight(0xfff4d2, 0.0, 95, 0.48, 0.4, 1.1);
-        this.headlight.position.set(0, 3.45, noseZ + 0.3);
+        // Windshield Wiper Arm (animated in rain)
+        const wiperGeo = new THREE.BoxGeometry(0.018, 0.65, 0.02);
+        wiperGeo.translate(0, 0.28, 0);
+        this.wiperArm = new THREE.Mesh(wiperGeo, darkMat);
+        this.wiperArm.position.set(-0.55, 2.52, cabL * 0.5 + 0.02);
+        this.cabInterior.add(this.wiperArm);
+
+        // Driver Seat (Left-side drive: x = -0.55m)
+        const seatGroup = new THREE.Group();
+        seatGroup.position.set(-0.55, 1.85, -0.2);
+        const seatBase = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.55), darkMat);
+        const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.72, 0.12), darkMat);
+        seatBack.position.set(0, 0.45, -0.22);
+        seatGroup.add(seatBase, seatBack);
+        this.cabInterior.add(seatGroup);
+
+        this.bodyGroup.add(this.cabInterior);
+
+        // =========================================================================
+        // 5. TWIN HEADLIGHTS + VOLUMETRIC CONES (Section 20.2)
+        // Mounted on the front nose face (frontZ = 6.1m) at x = -0.78m and +0.78m
+        // =========================================================================
+        this.headlightLensMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+        const hlHousingGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.22, 10);
+        hlHousingGeo.rotateX(Math.PI * 0.5);
+        const hlLensGeo = new THREE.CircleGeometry(0.18, 12);
+
+        // Volumetric light beam cone geometry
+        const beamGeo = new THREE.ConeGeometry(3.6, 26, 12, 1, true);
+        beamGeo.rotateX(-Math.PI * 0.5);
+        beamGeo.translate(0, -0.9, 13.0);
+        const beamMat = new THREE.MeshBasicMaterial({
+            color: 0xfff6d0,
+            transparent: true,
+            opacity: 0.09,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        [-0.78, 0.78].forEach(x => {
+            const h = new THREE.Mesh(hlHousingGeo, darkMat);
+            h.position.set(x, 2.35, frontZ + 0.1);
+            this.bodyGroup.add(h);
+
+            const l = new THREE.Mesh(hlLensGeo, this.headlightLensMat);
+            l.position.set(x, 2.35, frontZ + 0.22);
+            this.bodyGroup.add(l);
+
+            const cone = new THREE.Mesh(beamGeo, beamMat);
+            cone.position.set(x, 2.35, frontZ + 0.22);
+            cone.visible = false;
+            this.bodyGroup.add(cone);
+            this.headlightBeams.push(cone);
+        });
+
+        // Forward Dynamic SpotLight (Center beam with wide angle = 0.62)
+        this.headlight = new THREE.SpotLight(0xfff4d2, 0.0, 110, 0.62, 0.45, 1.1);
+        this.headlight.position.set(0, 2.35, frontZ + 0.25);
         const targetObj = new THREE.Object3D();
-        targetObj.position.set(0, 0.5, noseZ + 45);
+        targetObj.position.set(0, 0.4, frontZ + 55);
         this.bodyGroup.add(targetObj);
         this.headlight.target = targetObj;
         this.bodyGroup.add(this.headlight);
 
-        // 5. Articulated Locomotive Bogies
+        // Forward Ground Glow Decal (additive quad on rails ahead at night)
+        const glowGeo = new THREE.PlaneGeometry(3.8, 22);
+        glowGeo.rotateX(-Math.PI * 0.5);
+        this.groundGlow = new THREE.Mesh(
+            glowGeo,
+            new THREE.MeshBasicMaterial({
+                color: 0xffe899,
+                transparent: true,
+                opacity: 0.12,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        this.groundGlow.position.set(0, 0.12, frontZ + 14);
+        this.groundGlow.visible = false;
+        this.bodyGroup.add(this.groundGlow);
+
+        // 6. Articulated Locomotive Bogies
         this.frontBogie = this.createBogie();
         this.rearBogie = this.createBogie();
         this.root.add(this.frontBogie, this.rearBogie);
@@ -364,6 +617,23 @@ class TrainLocomotive {
         const shadowGeo = new THREE.PlaneGeometry(W * 1.32, L * 1.1);
         const shadowMat = new THREE.MeshBasicMaterial({ map: this.shadowTex, transparent: true, depthWrite: false });
 
+        // End Name Board Canvas ("গ্রামবাংলা এক্সপ্রেস")
+        const nbCanvas = document.createElement('canvas');
+        nbCanvas.width = 256; nbCanvas.height = 64;
+        const nbg = nbCanvas.getContext('2d');
+        nbg.fillStyle = '#0f2f1e';
+        nbg.fillRect(0, 0, 256, 64);
+        nbg.strokeStyle = '#e0b658';
+        nbg.lineWidth = 4;
+        nbg.strokeRect(2, 2, 252, 60);
+        nbg.fillStyle = '#ffffff';
+        nbg.font = "bold 18px 'BnSign', 'Noto Sans Bengali', 'Nirmala UI', sans-serif";
+        nbg.textAlign = 'center';
+        nbg.textBaseline = 'middle';
+        nbg.fillText('গ্রামবাংলা এক্সপ্রেস', 128, 32);
+        const nameBoardTex = new THREE.CanvasTexture(nbCanvas);
+        const nameBoardMat = new THREE.MeshBasicMaterial({ map: nameBoardTex });
+
         for (let i = 0; i < coachCount; i++) {
             const carGroup = new THREE.Group();
             this.root.add(carGroup);
@@ -374,22 +644,38 @@ class TrainLocomotive {
             sh.position.y = 0.06;
             carGroup.add(sh);
 
-            // 1 single textured mesh for the entire coach body + windows + stripes!
+            // Coach body
             const body = new THREE.Mesh(bodyGeo, coachMats);
             body.position.y = 2.48;
             carGroup.add(body);
 
-            // Clerestory roof crown
+            // Roof crown
             const roofCrown = new THREE.Mesh(roofArchGeo, roofMat);
             roofCrown.position.y = 3.88;
             carGroup.add(roofCrown);
 
-            // Flexible gangway bellows
+            // Gangway bellows
             const bellows = new THREE.Mesh(bellowsGeo, darkMat);
             bellows.position.set(0, 2.35, L * 0.5 + 0.32);
             carGroup.add(bellows);
 
-            // Articulated Bogies
+            // Train Name Board on coach rear
+            const nameBoard = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.38, 0.05), nameBoardMat);
+            nameBoard.position.set(0, 3.4, -L * 0.5 - 0.03);
+            carGroup.add(nameBoard);
+
+            // Two Red Tail Lamps on the very last coach (Section 20.2)
+            if (i === coachCount - 1) {
+                const tailLensMat = new THREE.MeshBasicMaterial({ color: 0xdd1111 });
+                [-0.92, 0.92].forEach(tx => {
+                    const tailLamp = new THREE.Mesh(new THREE.CircleGeometry(0.12, 10), tailLensMat);
+                    tailLamp.position.set(tx, 1.85, -L * 0.5 - 0.04);
+                    tailLamp.rotation.y = Math.PI;
+                    carGroup.add(tailLamp);
+                });
+            }
+
+            // Bogies
             const frontBogie = this.createBogie();
             const rearBogie = this.createBogie();
             this.root.add(frontBogie, rearBogie);
@@ -418,14 +704,15 @@ class TrainLocomotive {
 
         [-0.82, 0.82].forEach(z => {
             const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6), frameMat);
+            axle.position.set(0, wheelR, z);
             axle.rotateZ(Math.PI * 0.5);
-            axle.position.set(0, 0.54, z);
             bogieGroup.add(axle);
 
             [-halfGauge, halfGauge].forEach(x => {
                 const wheelPivot = new THREE.Group();
-                wheelPivot.position.set(x, 0.54, z);
-                wheelPivot.add(new THREE.Mesh(wheelGeo, wheelMat));
+                wheelPivot.position.set(x, wheelR, z);
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheelPivot.add(wheel);
                 bogieGroup.add(wheelPivot);
                 this.wheelMeshes.push(wheelPivot);
             });
@@ -464,17 +751,46 @@ class TrainLocomotive {
     setLights(on) {
         this.lightsOn = on;
         if (this.headlight) {
-            this.headlight.intensity = on ? 3.2 : 0.0;
-        }
-        if (this.headlightBeamMesh) {
-            this.headlightBeamMesh.visible = on;
+            this.headlight.intensity = on ? 3.4 : 0.0;
         }
         if (this.headlightLensMat) {
             this.headlightLensMat.color.setHex(on ? 0xfff8d6 : 0x555555);
         }
+        if (this.headlightBeams) {
+            this.headlightBeams.forEach(b => {
+                b.visible = on && !this.isDeckViewActive;
+            });
+        }
+        if (this.groundGlow) {
+            this.groundGlow.visible = on;
+        }
+        if (this.markerLamps) {
+            this.markerLamps.forEach(ml => {
+                ml.material.color.setHex(on ? 0xff2222 : 0x661111);
+            });
+        }
+        if (this.warningLampMat) {
+            this.warningLampMat.color.setHex(on ? 0xffaa00 : 0x331100);
+        }
         const glow = on ? 1.35 : 0.06;
         for (let i = 0; i < this.emissiveMaterials.length; i++) {
             this.emissiveMaterials[i].emissiveIntensity = glow;
+        }
+    }
+
+    // Toggle Deck POV Visibility (Section 4.2)
+    setDeckView(isDeck) {
+        this.isDeckViewActive = isDeck;
+        if (this.cabInterior) {
+            this.cabInterior.visible = isDeck;
+        }
+        if (this.cabExteriorFront) {
+            this.cabExteriorFront.visible = !isDeck;
+        }
+        if (this.headlightBeams) {
+            this.headlightBeams.forEach(b => {
+                b.visible = this.lightsOn && !isDeck;
+            });
         }
     }
 
@@ -483,51 +799,88 @@ class TrainLocomotive {
     }
 
     update(dt, moved) {
-        // Rotate cooling fans smoothly even when idling if engine is running
+        // 1. Cooling Fans
         const fanSpeed = this.physics.isRunning ? (4.0 + this.physics.speed * 0.8) : 0.8;
         for (let i = 0; i < this.roofFans.length; i++) {
             this.roofFans[i].rotation.y += fanSpeed * dt;
         }
 
-        // Update exhaust smoke puffs
-        this._updateSmoke(dt);
+        // 2. Cab Instrument Needles & Levers (Section 4.2)
+        if (this.isDeckViewActive) {
+            const kmh = this.physics.getKmh ? this.physics.getKmh() : (this.physics.speed * 3.6);
+            const kmhRatio = Math.min(1.0, kmh / 80.0);
+            if (this.speedNeedle) {
+                this.speedNeedle.rotation.z = 2.2 - kmhRatio * 4.4;
+            }
+            if (this.brakeNeedle) {
+                const brakePressure = this.physics.isRunning ? 5.0 : 0.0;
+                this.brakeNeedle.rotation.z = 2.2 - (brakePressure / 10.0) * 4.4;
+            }
+            if (this.amperageNeedle) {
+                const ampRatio = this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0.0;
+                this.amperageNeedle.rotation.z = 2.2 - ampRatio * 4.4;
+            }
+            if (this.throttleHandle) {
+                const tf = this.physics.throttleFraction || 0.85;
+                this.throttleHandle.rotation.x = -0.4 + tf * 0.8;
+            }
+            if (this.brakeHandle) {
+                this.brakeHandle.rotation.x = this.physics.isRunning ? 0.35 : -0.35;
+            }
+            if (this.wiperArm) {
+                // Sweep wiper arm when rain is active
+                const isRaining = this.physics.isRaining || document.getElementById('btn-rain')?.classList.contains('active');
+                if (isRaining) {
+                    this.wiperArm.rotation.z = Math.sin(performance.now() * 0.005) * 0.75;
+                } else {
+                    this.wiperArm.rotation.z = 0;
+                }
+            }
+        }
 
+        // 3. Exhaust Smoke
+        if (!this.isDeckViewActive) {
+            this._updateSmoke(dt);
+        }
+
+        // 4. Synchronize body and bogies if train moved
         if (moved) {
             this._syncMeshes();
         }
     }
 
     _syncMeshes() {
-        // 1. Lead Locomotive
-        const pos = this.physics.currentPosition;
-        const tangent = this.physics.currentTangent;
+        // 1. Locomotive Main Body
+        this.bodyGroup.position.copy(this.physics.currentPosition);
+        const tan = this.physics.currentTangent;
+        this.bodyGroup.rotation.y = Math.atan2(tan.x, tan.z);
+        const hDist = Math.hypot(tan.x, tan.z) || 1.0;
+        this.bodyGroup.rotation.x = -Math.atan2(tan.y, hDist);
 
-        this.bodyGroup.position.copy(pos);
-        this.bodyGroup.rotation.y = Math.atan2(tangent.x, tangent.z);
-        this.bodyGroup.rotation.x = -Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
-
+        // 2. Locomotive Bogies
         this.frontBogie.position.copy(this.physics.frontBogiePos);
-        this.rearBogie.position.copy(this.physics.rearBogiePos);
         this.frontBogie.rotation.y = Math.atan2(this.physics.frontBogieTan.x, this.physics.frontBogieTan.z);
+        this.rearBogie.position.copy(this.physics.rearBogiePos);
         this.rearBogie.rotation.y = Math.atan2(this.physics.rearBogieTan.x, this.physics.rearBogieTan.z);
 
-        // 2. 5 Passenger Carriages
-        const count = this.carriages.length;
-        for (let i = 0; i < count; i++) {
+        // 3. Passenger Carriages
+        for (let i = 0; i < this.carriages.length; i++) {
             const car = this.carriages[i];
             const data = this.physics.carriagesData[i];
+            if (!data) continue;
 
             car.group.position.copy(data.position);
             car.group.rotation.y = Math.atan2(data.tangent.x, data.tangent.z);
-            car.group.rotation.x = -Math.atan2(data.tangent.y, Math.hypot(data.tangent.x, data.tangent.z));
+            const hd = Math.hypot(data.tangent.x, data.tangent.z) || 1.0;
+            car.group.rotation.x = -Math.atan2(data.tangent.y, hd);
 
             car.frontBogie.position.copy(data.frontBogiePos);
-            car.rearBogie.position.copy(data.rearBogiePos);
             car.frontBogie.rotation.y = Math.atan2(data.frontTangent.x, data.frontTangent.z);
+            car.rearBogie.position.copy(data.rearBogiePos);
             car.rearBogie.rotation.y = Math.atan2(data.rearTangent.x, data.rearTangent.z);
         }
 
-        // 3. Wheels
+        // 4. Wheels rotation
         const rot = this.physics.wheelRotation;
         for (let i = 0; i < this.wheelMeshes.length; i++) {
             this.wheelMeshes[i].rotation.x = rot;
@@ -536,12 +889,11 @@ class TrainLocomotive {
 
     _updateSmoke(dt) {
         const isActive = this.physics.isRunning || this.physics.speed > 0.2;
-        const interval = isActive ? Math.max(0.06, 0.22 - this.physics.getSpeedRatio() * 0.14) : 0.6;
+        const interval = isActive ? Math.max(0.06, 0.22 - (this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0) * 0.14) : 0.6;
         this.smokeTimer += dt;
 
         if (this.smokeTimer >= interval) {
             this.smokeTimer = 0;
-            // Find an inactive puff
             for (let i = 0; i < this.smokePool.length; i++) {
                 const p = this.smokePool[i];
                 if (p.age >= p.maxAge) {
@@ -549,13 +901,14 @@ class TrainLocomotive {
                     const tan = this.physics.currentTangent;
                     p.age = 0;
                     p.maxAge = 1.1 + Math.random() * 0.4;
+                    // Exhaust stack is at +0.6m on hood
                     p.mesh.position.set(
-                        pos.x - tan.x * 1.8 + (Math.random() - 0.5) * 0.2,
+                        pos.x + tan.x * 0.6 + (Math.random() - 0.5) * 0.2,
                         pos.y + 4.1,
-                        pos.z - tan.z * 1.8 + (Math.random() - 0.5) * 0.2
+                        pos.z + tan.z * 0.6 + (Math.random() - 0.5) * 0.2
                     );
                     p.vx = (Math.random() - 0.5) * 0.8 - tan.x * (this.physics.speed * 0.18);
-                    p.vy = 2.2 + this.physics.getSpeedRatio() * 2.4;
+                    p.vy = 2.2 + (this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0) * 2.4;
                     p.vz = (Math.random() - 0.5) * 0.8 - tan.z * (this.physics.speed * 0.18);
                     p.mesh.scale.setScalar(0.55);
                     p.mat.opacity = isActive ? 0.38 : 0.15;

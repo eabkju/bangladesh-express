@@ -2,16 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#080f1a">
-    <title>Realistic 3D Web Train Simulation — Cool CPU Edition</title>
+    <title>Greenlands 3D Railway Simulator — Bangladesh Express Edition</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <!-- Loading Screen -->
     <div id="loading-overlay">
         <div class="train-spinner">🚂</div>
-        <div class="loader-title">Greenlands 3D Railway Simulator</div>
+        <div class="loader-title">গ্রামবাংলা এক্সপ্রেস · Greenlands 3D Simulator</div>
         <div class="loader-sub">Initializing GPU-instanced scenery &amp; O(1) physics...</div>
     </div>
 
@@ -42,7 +46,52 @@
             <span id="speed-gauge-val">0</span>
             <span id="speed-gauge-unit">km/h</span>
         </div>
+        <button id="btn-menu" class="hud-btn hud-menu-btn" title="Open Settings &amp; Actions Menu">
+            <span class="hud-icon">☰</span>
+            <span class="hud-val">Menu</span>
+        </button>
     </header>
+
+    <!-- Slide-Over Menu Drawer (Mobile & Desktop) -->
+    <aside id="menu-drawer" class="menu-drawer" aria-label="Simulator Settings">
+        <div class="drawer-header">
+            <h3>⚙️ Settings &amp; View</h3>
+            <button id="btn-menu-close" class="drawer-close" title="Close Menu">✕</button>
+        </div>
+        <div class="drawer-content">
+            <div class="menu-section">
+                <h4>Controls &amp; Layout</h4>
+                <button id="btn-toggle-left-hand" class="menu-action-btn">
+                    <span>Left-Handed Layout</span>
+                    <span class="menu-val">OFF</span>
+                </button>
+                <button id="btn-reset-layout" class="menu-action-btn">
+                    <span>Reset Dock Position</span>
+                    <span class="menu-sub">Center bottom</span>
+                </button>
+                <button id="btn-reset-progress" class="menu-action-btn">
+                    <span>Reset Saved Progress</span>
+                    <span class="menu-sub">Start at zero</span>
+                </button>
+            </div>
+            <div class="menu-section">
+                <h4>Camera Modes</h4>
+                <div class="menu-hint">C: Cycle View · Double-tap in Deck POV to center</div>
+            </div>
+            <div class="menu-section">
+                <h4>Keyboard Shortcuts</h4>
+                <div class="shortcuts-grid">
+                    <div><kbd>Space</kbd> Start / Stop</div>
+                    <div><kbd>H</kbd> Train Horn</div>
+                    <div><kbd>L</kbd> Headlights</div>
+                    <div><kbd>C</kbd> Camera Mode</div>
+                    <div><kbd>N</kbd> Day / Sunset / Night</div>
+                    <div><kbd>R</kbd> Rain Atmosphere</div>
+                    <div><kbd>+/-</kbd> Zoom Distance / FOV</div>
+                </div>
+            </div>
+        </div>
+    </aside>
 
     <!-- Live Thermal & Draw-Call Telemetry Pill -->
     <div id="perf-pill" aria-live="polite">
@@ -57,9 +106,9 @@
         <button id="btn-recenter" class="cam-btn" title="Recenter Camera on Train">🎯</button>
     </nav>
 
-    <!-- The 3 Primary Controllers Dock + Throttle Slider (Long-Tap Draggable) -->
+    <!-- The 3 Primary Controllers Dock + Throttle Slider (Grip Long-Tap Draggable) -->
     <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
-        <div class="drag-grip-indicator" title="Hold 500ms to drag dock">
+        <div class="drag-grip-indicator" title="Hold 450ms to drag dock">
             <span class="grip-bar"></span>
             <span class="grip-bar"></span>
             <span class="grip-bar"></span>
@@ -92,7 +141,7 @@
             <input id="throttle-slider" type="range" min="25" max="100" value="85" title="Adjust Cruising Speed">
         </div>
 
-        <div class="dock-hint">Hold 500ms to drag dock anywhere · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>
+        <div class="dock-hint">Hold grip bar to reposition dock · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>
     </div>
 
     <!-- Local Three.js with CDN fallback -->
@@ -100,6 +149,13 @@
     <script>
         if (typeof THREE === 'undefined') {
             document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+        }
+    </script>
+
+    <!-- Service Worker registration for offline PWA speed -->
+    <script>
+        if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+            navigator.serviceWorker.register('sw.js').catch(function() {});
         }
     </script>
 

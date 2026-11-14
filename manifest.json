@@ -1,0 +1,16 @@
+{
+  "name": "Greenlands 3D Railway Simulator",
+  "short_name": "TrainGame",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#080f1a",
+  "theme_color": "#080f1a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

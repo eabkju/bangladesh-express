@@ -45,30 +45,38 @@ window.GAME_CONFIG = {
         minDistance: 7,
         maxDistance: 180,
         defaultPitch: 0.34,     // Radians elevation angle
-        defaultYaw: -0.68       // Radians azimuth angle
+        defaultYaw: -0.68,      // Radians azimuth angle
+        deck: {
+            eye: { x: -0.55, y: 3.25, z: 4.2 }, // Cab-forward driver seat POV (Option A)
+            hfovDeg: 78,
+            near: 0.08,
+            yawLimit: 1.75,
+            pitchLimit: 0.45
+        }
     },
 
     // Performance & Thermal Settings
     performance: {
         modes: [
-            { id: 'balanced', label: '🌿 Cool 45 FPS', fpsCap: 45, maxDpr: 1.25 },
-            { id: 'eco',      label: '⚡ Eco 30 FPS',  fpsCap: 30, maxDpr: 1.0  },
-            { id: 'max',      label: '🚀 60 FPS',      fpsCap: 60, maxDpr: 1.5  }
+            { id: 'balanced', label: '🌿 Cool 45 FPS', fpsCap: 45, maxDpr: 1.25, k: 1 },
+            { id: 'eco',      label: '⚡ Eco 30 FPS',  fpsCap: 30, maxDpr: 1.0,  k: 2 },
+            { id: 'max',      label: '🚀 60 FPS',      fpsCap: 60, maxDpr: 1.5,  k: 1 }
         ],
         defaultModeIndex: 0
     },
 
-    // Visual Themes / Lighting (Rich, Natural Simulator Palette)
+    // Visual Themes / Lighting (Bangladeshi Simulator Palette - Section 20)
     colors: {
-        // Heritage Royal Navy & Champagne Gold Livery
-        trainBody: 0x16283d,
-        coachBody: 0x192d44,
-        trainStripe: 0xe0b658,
-        trainRoof: 0x242a32,
-        trainFrame: 0x15181c,
+        // Bangladeshi Blue-and-Red Train Livery
+        trainBody: 0x1b4f9c,    // Royal blue upper body
+        coachBody: 0x1b4f9c,
+        trainAccent: 0xc8102e,  // Red lower band, nose panel & skirts
+        trainStripe: 0xf4f4f0,  // White pin line
+        trainRoof: 0x8a9099,    // Light grey roof
+        trainFrame: 0x1a1d22,   // Black underframe
         trainBogies: 0x1c2026,
         trainWheels: 0x707882,
-        trainBuffersRed: 0x992b2b,
+        trainBuffersRed: 0xc8102e,
 
         // Carriage & Window Glow
         coachWindowGlow: 0xffe299,
