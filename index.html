@@ -64,8 +64,8 @@
                     <span class="menu-val">OFF</span>
                 </button>
                 <button id="btn-reset-layout" class="menu-action-btn">
-                    <span>Reset Dock Position</span>
-                    <span class="menu-sub">Center bottom</span>
+                    <span>Reset Panels</span>
+                    <span class="menu-sub">Re-open controls</span>
                 </button>
                 <button id="btn-reset-progress" class="menu-action-btn">
                     <span>Reset Saved Progress</span>
@@ -93,13 +93,60 @@
         </div>
     </aside>
 
-    <!-- FAB column: Weather & Graphics floating action buttons -->
+    <!-- FAB column: Train Controls, Weather & Graphics floating action buttons -->
     <div id="fab-col">
+        <button id="btn-controls-fab" class="fab-btn panel-open" title="Train Controls (Start/Stop, Horn, Lights, Throttle, Camera)">🕹️</button>
         <button id="btn-weather-fab" class="fab-btn" title="Weather Controls (Day/Dawn/Night + Rain)">⛅</button>
         <button id="btn-graphics-fab" class="fab-btn" title="Graphics Quality Tier (Hotkey: Q)">🎨</button>
     </div>
 
-    <!-- Weather Panel (slide-in from right) -->
+    <!-- 1. Train Controls Panel (slide-in from right, same style as Weather & Graphics) -->
+    <div id="controls-panel" class="side-panel open" aria-hidden="false">
+        <div class="panel-header">
+            <span class="panel-title">🕹️ Train Controls</span>
+            <button id="btn-controls-close" class="panel-close-btn" title="Close Controls Panel">✕</button>
+        </div>
+
+        <!-- Primary 3 Controllers: Start/Stop, Horn, Light -->
+        <div class="ctrl-grid">
+            <button id="btn-start-stop" class="ctrl-btn running" title="Toggle Throttle / Brakes (Hotkey: Space)">
+                <span class="btn-icon">⏹</span>
+                <span class="btn-label">STOP</span>
+                <span class="btn-sub">Apply Brakes</span>
+            </button>
+            <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
+                <span class="btn-icon">📢</span>
+                <span class="btn-label">HORN</span>
+                <span class="btn-sub">Press &amp; Hold</span>
+            </button>
+            <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
+                <span class="btn-icon">💡</span>
+                <span class="btn-label">LIGHT</span>
+                <span class="btn-sub">Lights OFF</span>
+            </button>
+        </div>
+
+        <!-- Cruise Throttle Slider Section -->
+        <div class="panel-throttle-box">
+            <div class="panel-throttle-head">
+                <span class="throttle-title">Throttle</span>
+                <span id="throttle-val-display" class="throttle-badge">85%</span>
+            </div>
+            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed (Hotkeys: W/S or ↑/↓)">
+        </div>
+
+        <!-- Camera Navigation: Zoom +, Zoom -, Recenter -->
+        <div class="panel-cam-box">
+            <span class="panel-sub-label">Camera Angle &amp; Zoom</span>
+            <div class="panel-cam-row">
+                <button id="btn-zoom-in" class="cam-dock-btn" title="Zoom In (+)">➕</button>
+                <button id="btn-zoom-out" class="cam-dock-btn" title="Zoom Out (−)">➖</button>
+                <button id="btn-recenter" class="cam-dock-btn" title="Recenter Camera on Train">🎯</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Weather Panel (slide-in from right) -->
     <div id="weather-panel" class="side-panel" aria-hidden="true">
         <div class="panel-title">🌤️ Weather &amp; Time</div>
         <div class="weather-row">
@@ -113,7 +160,7 @@
         </div>
     </div>
 
-    <!-- Graphics Quality Panel (slide-in from right) -->
+    <!-- 3. Graphics Quality Panel (slide-in from right) -->
     <div id="graphics-panel" class="side-panel" aria-hidden="true">
         <div class="panel-title">🎨 Graphics Quality</div>
         <div class="quality-grid">
@@ -140,56 +187,10 @@
         </div>
     </div>
 
-
     <!-- Live Thermal & Draw-Call Telemetry Pill -->
     <div id="perf-pill" aria-live="polite">
         <span class="perf-dot"></span>
         <span id="perf-text">45 FPS · 24 Draw Calls · CPU Cool</span>
-    </div>
-
-    <!-- The 3 Primary Controllers Dock + Throttle Slider (Grip Long-Tap Draggable) -->
-    <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
-        <div class="drag-grip-indicator" title="Hold 450ms to drag dock">
-            <span class="grip-bar"></span>
-            <span class="grip-bar"></span>
-            <span class="grip-bar"></span>
-        </div>
-
-        <!-- 1. Start / Stop Controller -->
-        <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
-            <span class="btn-icon">▶</span>
-            <span class="btn-label">START</span>
-            <span class="btn-sub">Throttle / Go</span>
-        </button>
-
-        <!-- 2. Horn Controller -->
-        <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
-            <span class="btn-icon">📢</span>
-            <span class="btn-label">HORN</span>
-            <span class="btn-sub">Press &amp; Hold</span>
-        </button>
-
-        <!-- 3. Light Controller -->
-        <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
-            <span class="btn-icon">💡</span>
-            <span class="btn-label">LIGHT</span>
-            <span class="btn-sub">Lights OFF</span>
-        </button>
-
-        <!-- 4. Cruise Throttle Slider -->
-        <div class="throttle-stack">
-            <label for="throttle-slider" class="throttle-label">Throttle</label>
-            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed">
-        </div>
-
-        <!-- 5. Camera Controls Row -->
-        <div class="dock-cam-row">
-            <button id="btn-zoom-in" class="cam-dock-btn" title="Zoom In (+)">➕</button>
-            <button id="btn-zoom-out" class="cam-dock-btn" title="Zoom Out (−)">➖</button>
-            <button id="btn-recenter" class="cam-dock-btn" title="Recenter Camera on Train">🎯</button>
-        </div>
-
-        <div class="dock-hint">Hold grip bar to reposition dock · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>
     </div>
 
     <!-- Local Three.js with CDN fallback -->

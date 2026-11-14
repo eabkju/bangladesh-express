@@ -829,6 +829,143 @@ body.deck-view #canvas-container::after {
   font-weight: 700;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.panel-header .panel-title {
+  margin-bottom: 0;
+}
+
+.panel-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.panel-close-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Controls Panel Styling */
+#controls-panel {
+  min-width: 270px;
+  max-width: 320px;
+}
+
+#btn-controls-fab.panel-open {
+  background: rgba(250, 204, 21, 0.26);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.45);
+}
+
+.ctrl-grid {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+#controls-panel .ctrl-btn {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 72px;
+  border-radius: 14px;
+  padding: 6px 4px;
+}
+
+#controls-panel .ctrl-btn .btn-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+#controls-panel .ctrl-btn .btn-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+#controls-panel .ctrl-btn .btn-sub {
+  font-size: 8px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.panel-throttle-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-glass);
+  margin: 10px 0;
+}
+
+.panel-throttle-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.throttle-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.throttle-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+#controls-panel #throttle-slider {
+  width: 100%;
+  accent-color: var(--accent-gold);
+  height: 20px;
+  cursor: pointer;
+}
+
+.panel-cam-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-sub-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.panel-cam-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+#controls-panel .cam-dock-btn {
+  flex: 1;
+  width: auto;
+  height: 38px;
+  font-size: 15px;
+}
+
 /* Weather Panel Row */
 .weather-row {
   display: flex;
@@ -1022,10 +1159,10 @@ body.deck-view #canvas-container::after {
 @media (max-width: 680px) {
   #fab-col {
     right: 10px;
-    top: auto;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
-    transform: none;
+    top: 50%;
+    transform: translateY(-50%);
     flex-direction: column;
+    gap: 10px;
   }
 
   .fab-btn {
@@ -1035,25 +1172,60 @@ body.deck-view #canvas-container::after {
   }
 
   .side-panel {
-    right: 66px;
-    top: auto;
-    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
-    transform: translateX(16px);
-    min-width: 190px;
+    right: 64px;
+    top: 50%;
+    transform: translateY(-50%) translateX(16px);
+    min-width: 220px;
+    max-width: calc(100vw - 80px);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
   }
 
   .side-panel.open {
-    transform: translateX(0);
+    transform: translateY(-50%) translateX(0);
   }
 
-  .dock-cam-row {
-    gap: 6px;
+  #controls-panel {
+    min-width: 250px;
+    max-width: calc(100vw - 80px);
   }
 
-  .cam-dock-btn {
-    width: 40px;
-    height: 36px;
-    font-size: 14px;
+  #controls-panel .ctrl-btn {
+    height: 64px;
+  }
+}
+
+/* Left-Handed Layout Toggle */
+.left-handed-layout #fab-col {
+  right: auto;
+  left: 18px;
+}
+
+.left-handed-layout .side-panel {
+  right: auto;
+  left: 80px;
+  transform: translateY(-50%) translateX(-20px);
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.5);
+}
+
+.left-handed-layout .side-panel.open {
+  transform: translateY(-50%) translateX(0);
+}
+
+@media (max-width: 680px) {
+  .left-handed-layout #fab-col {
+    right: auto;
+    left: 10px;
+  }
+
+  .left-handed-layout .side-panel {
+    right: auto;
+    left: 64px;
+    transform: translateY(-50%) translateX(-16px);
+  }
+
+  .left-handed-layout .side-panel.open {
+    transform: translateY(-50%) translateX(0);
   }
 }
 
@@ -1112,8 +1284,8 @@ body.deck-view #canvas-container::after {
                     <span class="menu-val">OFF</span>
                 </button>
                 <button id="btn-reset-layout" class="menu-action-btn">
-                    <span>Reset Dock Position</span>
-                    <span class="menu-sub">Center bottom</span>
+                    <span>Reset Panels</span>
+                    <span class="menu-sub">Re-open controls</span>
                 </button>
                 <button id="btn-reset-progress" class="menu-action-btn">
                     <span>Reset Saved Progress</span>
@@ -1141,13 +1313,60 @@ body.deck-view #canvas-container::after {
         </div>
     </aside>
 
-    <!-- FAB column: Weather & Graphics floating action buttons -->
+    <!-- FAB column: Train Controls, Weather & Graphics floating action buttons -->
     <div id="fab-col">
+        <button id="btn-controls-fab" class="fab-btn panel-open" title="Train Controls (Start/Stop, Horn, Lights, Throttle, Camera)">🕹️</button>
         <button id="btn-weather-fab" class="fab-btn" title="Weather Controls (Day/Dawn/Night + Rain)">⛅</button>
         <button id="btn-graphics-fab" class="fab-btn" title="Graphics Quality Tier (Hotkey: Q)">🎨</button>
     </div>
 
-    <!-- Weather Panel (slide-in from right) -->
+    <!-- 1. Train Controls Panel (slide-in from right, same style as Weather & Graphics) -->
+    <div id="controls-panel" class="side-panel open" aria-hidden="false">
+        <div class="panel-header">
+            <span class="panel-title">🕹️ Train Controls</span>
+            <button id="btn-controls-close" class="panel-close-btn" title="Close Controls Panel">✕</button>
+        </div>
+
+        <!-- Primary 3 Controllers: Start/Stop, Horn, Light -->
+        <div class="ctrl-grid">
+            <button id="btn-start-stop" class="ctrl-btn running" title="Toggle Throttle / Brakes (Hotkey: Space)">
+                <span class="btn-icon">⏹</span>
+                <span class="btn-label">STOP</span>
+                <span class="btn-sub">Apply Brakes</span>
+            </button>
+            <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
+                <span class="btn-icon">📢</span>
+                <span class="btn-label">HORN</span>
+                <span class="btn-sub">Press &amp; Hold</span>
+            </button>
+            <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
+                <span class="btn-icon">💡</span>
+                <span class="btn-label">LIGHT</span>
+                <span class="btn-sub">Lights OFF</span>
+            </button>
+        </div>
+
+        <!-- Cruise Throttle Slider Section -->
+        <div class="panel-throttle-box">
+            <div class="panel-throttle-head">
+                <span class="throttle-title">Throttle</span>
+                <span id="throttle-val-display" class="throttle-badge">85%</span>
+            </div>
+            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed (Hotkeys: W/S or ↑/↓)">
+        </div>
+
+        <!-- Camera Navigation: Zoom +, Zoom -, Recenter -->
+        <div class="panel-cam-box">
+            <span class="panel-sub-label">Camera Angle &amp; Zoom</span>
+            <div class="panel-cam-row">
+                <button id="btn-zoom-in" class="cam-dock-btn" title="Zoom In (+)">➕</button>
+                <button id="btn-zoom-out" class="cam-dock-btn" title="Zoom Out (−)">➖</button>
+                <button id="btn-recenter" class="cam-dock-btn" title="Recenter Camera on Train">🎯</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Weather Panel (slide-in from right) -->
     <div id="weather-panel" class="side-panel" aria-hidden="true">
         <div class="panel-title">🌤️ Weather &amp; Time</div>
         <div class="weather-row">
@@ -1161,7 +1380,7 @@ body.deck-view #canvas-container::after {
         </div>
     </div>
 
-    <!-- Graphics Quality Panel (slide-in from right) -->
+    <!-- 3. Graphics Quality Panel (slide-in from right) -->
     <div id="graphics-panel" class="side-panel" aria-hidden="true">
         <div class="panel-title">🎨 Graphics Quality</div>
         <div class="quality-grid">
@@ -1188,56 +1407,10 @@ body.deck-view #canvas-container::after {
         </div>
     </div>
 
-
     <!-- Live Thermal & Draw-Call Telemetry Pill -->
     <div id="perf-pill" aria-live="polite">
         <span class="perf-dot"></span>
         <span id="perf-text">45 FPS · 24 Draw Calls · CPU Cool</span>
-    </div>
-
-    <!-- The 3 Primary Controllers Dock + Throttle Slider (Grip Long-Tap Draggable) -->
-    <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
-        <div class="drag-grip-indicator" title="Hold 450ms to drag dock">
-            <span class="grip-bar"></span>
-            <span class="grip-bar"></span>
-            <span class="grip-bar"></span>
-        </div>
-
-        <!-- 1. Start / Stop Controller -->
-        <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
-            <span class="btn-icon">▶</span>
-            <span class="btn-label">START</span>
-            <span class="btn-sub">Throttle / Go</span>
-        </button>
-
-        <!-- 2. Horn Controller -->
-        <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
-            <span class="btn-icon">📢</span>
-            <span class="btn-label">HORN</span>
-            <span class="btn-sub">Press &amp; Hold</span>
-        </button>
-
-        <!-- 3. Light Controller -->
-        <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
-            <span class="btn-icon">💡</span>
-            <span class="btn-label">LIGHT</span>
-            <span class="btn-sub">Lights OFF</span>
-        </button>
-
-        <!-- 4. Cruise Throttle Slider -->
-        <div class="throttle-stack">
-            <label for="throttle-slider" class="throttle-label">Throttle</label>
-            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed">
-        </div>
-
-        <!-- 5. Camera Controls Row -->
-        <div class="dock-cam-row">
-            <button id="btn-zoom-in" class="cam-dock-btn" title="Zoom In (+)">➕</button>
-            <button id="btn-zoom-out" class="cam-dock-btn" title="Zoom Out (−)">➖</button>
-            <button id="btn-recenter" class="cam-dock-btn" title="Recenter Camera on Train">🎯</button>
-        </div>
-
-        <div class="dock-hint">Hold grip bar to reposition dock · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>
     </div>
 
     <!-- Local Three.js with CDN fallback -->
@@ -5973,10 +6146,12 @@ class GameControls {
 
         // 4. Throttle Slider
         const throttleSlider = document.getElementById('throttle-slider');
+        const throttleValDisplay = document.getElementById('throttle-val-display');
         if (throttleSlider) {
             throttleSlider.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value) / 100;
                 this.trainPhysics.setThrottleFraction(val);
+                if (throttleValDisplay) throttleValDisplay.textContent = `${Math.round(val * 100)}%`;
                 this.cameraMovedRecently = true;
             });
         }
@@ -6020,6 +6195,41 @@ class GameControls {
             });
         }
 
+        // 8a. Controls FAB & Panel toggle (positioned above weather button)
+        const btnControlsFab = document.getElementById('btn-controls-fab');
+        const controlsPanel = document.getElementById('controls-panel');
+        const btnControlsClose = document.getElementById('btn-controls-close');
+
+        const closeControls = () => {
+            if (controlsPanel) { controlsPanel.classList.remove('open'); controlsPanel.setAttribute('aria-hidden', 'true'); }
+            if (btnControlsFab) btnControlsFab.classList.remove('panel-open');
+        };
+        const openControls = () => {
+            if (controlsPanel) { controlsPanel.classList.add('open'); controlsPanel.setAttribute('aria-hidden', 'false'); }
+            if (btnControlsFab) btnControlsFab.classList.add('panel-open');
+        };
+
+        if (btnControlsFab && controlsPanel) {
+            btnControlsFab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = controlsPanel.classList.contains('open');
+                closeWeather();
+                closeGraphics();
+                if (isOpen) {
+                    closeControls();
+                } else {
+                    openControls();
+                }
+            });
+        }
+
+        if (btnControlsClose) {
+            btnControlsClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeControls();
+            });
+        }
+
         // 8b. Weather FAB toggle
         const btnWeatherFab = document.getElementById('btn-weather-fab');
         const weatherPanel = document.getElementById('weather-panel');
@@ -6039,6 +6249,7 @@ class GameControls {
             btnWeatherFab.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isOpen = weatherPanel.classList.contains('open');
+                closeControls();
                 closeGraphics();
                 if (isOpen) {
                     closeWeather();
@@ -6054,6 +6265,7 @@ class GameControls {
             btnGraphicsFab.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isOpen = graphicsPanel.classList.contains('open');
+                closeControls();
                 closeWeather();
                 if (isOpen) {
                     closeGraphics();
@@ -6069,6 +6281,7 @@ class GameControls {
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#weather-panel') && !e.target.closest('#btn-weather-fab')) closeWeather();
             if (!e.target.closest('#graphics-panel') && !e.target.closest('#btn-graphics-fab')) closeGraphics();
+            if (!e.target.closest('#controls-panel') && !e.target.closest('#btn-controls-fab') && !e.target.closest('#canvas-container')) closeControls();
         });
 
         // 8c. Weather day/dawn/night buttons in the weather panel
@@ -6171,7 +6384,7 @@ class GameControls {
         const btnResetLayout = document.getElementById('btn-reset-layout');
         if (btnResetLayout) {
             btnResetLayout.addEventListener('click', () => {
-                this.resetDockPosition();
+                openControls();
                 if (menuDrawer) menuDrawer.classList.remove('open');
             });
         }
@@ -6239,6 +6452,8 @@ class GameControls {
                 if (slider) {
                     slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
                     this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                    const disp = document.getElementById('throttle-val-display');
+                    if (disp) disp.textContent = `${slider.value}%`;
                     this.cameraMovedRecently = true;
                 }
             } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
@@ -6246,6 +6461,8 @@ class GameControls {
                 if (slider) {
                     slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
                     this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                    const disp = document.getElementById('throttle-val-display');
+                    if (disp) disp.textContent = `${slider.value}%`;
                     this.cameraMovedRecently = true;
                 }
             } else if (e.code === 'KeyR') {
@@ -6696,6 +6913,8 @@ class GameControls {
                 trainPhysics.setThrottleFraction(saved.throttle);
                 const slider = document.getElementById('throttle-slider');
                 if (slider) slider.value = Math.round(saved.throttle * 100);
+                const disp = document.getElementById('throttle-val-display');
+                if (disp) disp.textContent = `${Math.round(saved.throttle * 100)}%`;
             }
             if (saved.preset && weatherManager) {
                 const presetKey = (saved.preset === 'sunset') ? 'dawn' : saved.preset;

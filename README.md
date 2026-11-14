@@ -96,13 +96,15 @@ An ultra-lightweight, visually rich 3D railway simulation game built with **Thre
 ### 12. Redesigned Screen Controls, Weather FAB & Graphics Quality Panels
 - **Minimalist Top HUD**:
   - Clean layout containing only essential elements: `🔊 Mute`, `Speedometer (km/h)`, `🎥 Camera Mode`, and `☰ Menu`.
-- **Floating Action Buttons (FAB Column)**:
+- **Floating Action Buttons (FAB Column on Right Edge)**:
+  - **🕹️ Controls FAB (Above Weather)**: Slides out the full locomotive controller panel in the exact glassmorphic card style as Weather & Graphics:
+    - Primary controllers: **▶ START / ⏹ STOP**, **📢 HORN** (press & hold), and **💡 LIGHT** toggle.
+    - Full-range cruise throttle slider (`0%` to `100%`) with live percentage display badge.
+    - Integrated camera navigation: **➕ Zoom In**, **➖ Zoom Out**, and **🎯 Recenter** camera.
+    - Quick close button (`✕`) or toggle via the FAB button.
   - **⛅ Weather FAB**: Slides out the Weather Panel with direct selection for **☀️ Day**, **🌅 Dawn**, and **🌙 Night**, plus an interactive **🌧️ Rain ON/OFF** toggle.
   - **🎨 Graphics FAB**: Slides out a 2×2 grid of quality tier cards (**🐢 Low 30 FPS**, **🌿 Moderate 40 FPS**, **✨ Medium 50 FPS**, **🔥 High 60 FPS**) for instant one-tap switching.
-  - Auto-dismiss on canvas drag/touch or outside click.
-- **Integrated Driver Dock Camera Controls**:
-  - Consolidated **➕ Zoom In**, **➖ Zoom Out**, and **🎯 Recenter** buttons directly into a dedicated bottom row within the locomotive dock.
-  - Full-range throttle slider (`0%` to `100%`) allowing complete halt to maximum speed.
+  - Mutual panel exclusivity (opening one panel gracefully collapses the others).
 - **Complete Keyboard Navigation**:
   - `Space`: Start / Stop throttle
   - `W` / `S` or `↑` / `↓`: Adjust cruise throttle in 5% increments

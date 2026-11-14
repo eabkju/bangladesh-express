@@ -201,6 +201,8 @@
                 trainPhysics.setThrottleFraction(saved.throttle);
                 const slider = document.getElementById('throttle-slider');
                 if (slider) slider.value = Math.round(saved.throttle * 100);
+                const disp = document.getElementById('throttle-val-display');
+                if (disp) disp.textContent = `${Math.round(saved.throttle * 100)}%`;
             }
             if (saved.preset && weatherManager) {
                 const presetKey = (saved.preset === 'sunset') ? 'dawn' : saved.preset;

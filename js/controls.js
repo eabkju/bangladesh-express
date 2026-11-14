@@ -287,10 +287,12 @@ class GameControls {
 
         // 4. Throttle Slider
         const throttleSlider = document.getElementById('throttle-slider');
+        const throttleValDisplay = document.getElementById('throttle-val-display');
         if (throttleSlider) {
             throttleSlider.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value) / 100;
                 this.trainPhysics.setThrottleFraction(val);
+                if (throttleValDisplay) throttleValDisplay.textContent = `${Math.round(val * 100)}%`;
                 this.cameraMovedRecently = true;
             });
         }
@@ -334,6 +336,41 @@ class GameControls {
             });
         }
 
+        // 8a. Controls FAB & Panel toggle (positioned above weather button)
+        const btnControlsFab = document.getElementById('btn-controls-fab');
+        const controlsPanel = document.getElementById('controls-panel');
+        const btnControlsClose = document.getElementById('btn-controls-close');
+
+        const closeControls = () => {
+            if (controlsPanel) { controlsPanel.classList.remove('open'); controlsPanel.setAttribute('aria-hidden', 'true'); }
+            if (btnControlsFab) btnControlsFab.classList.remove('panel-open');
+        };
+        const openControls = () => {
+            if (controlsPanel) { controlsPanel.classList.add('open'); controlsPanel.setAttribute('aria-hidden', 'false'); }
+            if (btnControlsFab) btnControlsFab.classList.add('panel-open');
+        };
+
+        if (btnControlsFab && controlsPanel) {
+            btnControlsFab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = controlsPanel.classList.contains('open');
+                closeWeather();
+                closeGraphics();
+                if (isOpen) {
+                    closeControls();
+                } else {
+                    openControls();
+                }
+            });
+        }
+
+        if (btnControlsClose) {
+            btnControlsClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeControls();
+            });
+        }
+
         // 8b. Weather FAB toggle
         const btnWeatherFab = document.getElementById('btn-weather-fab');
         const weatherPanel = document.getElementById('weather-panel');
@@ -353,6 +390,7 @@ class GameControls {
             btnWeatherFab.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isOpen = weatherPanel.classList.contains('open');
+                closeControls();
                 closeGraphics();
                 if (isOpen) {
                     closeWeather();
@@ -368,6 +406,7 @@ class GameControls {
             btnGraphicsFab.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isOpen = graphicsPanel.classList.contains('open');
+                closeControls();
                 closeWeather();
                 if (isOpen) {
                     closeGraphics();
@@ -383,6 +422,7 @@ class GameControls {
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#weather-panel') && !e.target.closest('#btn-weather-fab')) closeWeather();
             if (!e.target.closest('#graphics-panel') && !e.target.closest('#btn-graphics-fab')) closeGraphics();
+            if (!e.target.closest('#controls-panel') && !e.target.closest('#btn-controls-fab') && !e.target.closest('#canvas-container')) closeControls();
         });
 
         // 8c. Weather day/dawn/night buttons in the weather panel
@@ -485,7 +525,7 @@ class GameControls {
         const btnResetLayout = document.getElementById('btn-reset-layout');
         if (btnResetLayout) {
             btnResetLayout.addEventListener('click', () => {
-                this.resetDockPosition();
+                openControls();
                 if (menuDrawer) menuDrawer.classList.remove('open');
             });
         }
@@ -553,6 +593,8 @@ class GameControls {
                 if (slider) {
                     slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
                     this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                    const disp = document.getElementById('throttle-val-display');
+                    if (disp) disp.textContent = `${slider.value}%`;
                     this.cameraMovedRecently = true;
                 }
             } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
@@ -560,6 +602,8 @@ class GameControls {
                 if (slider) {
                     slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
                     this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                    const disp = document.getElementById('throttle-val-display');
+                    if (disp) disp.textContent = `${slider.value}%`;
                     this.cameraMovedRecently = true;
                 }
             } else if (e.code === 'KeyR') {

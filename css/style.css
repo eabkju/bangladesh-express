@@ -817,6 +817,143 @@ body.deck-view #canvas-container::after {
   font-weight: 700;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.panel-header .panel-title {
+  margin-bottom: 0;
+}
+
+.panel-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.panel-close-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Controls Panel Styling */
+#controls-panel {
+  min-width: 270px;
+  max-width: 320px;
+}
+
+#btn-controls-fab.panel-open {
+  background: rgba(250, 204, 21, 0.26);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.45);
+}
+
+.ctrl-grid {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+#controls-panel .ctrl-btn {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 72px;
+  border-radius: 14px;
+  padding: 6px 4px;
+}
+
+#controls-panel .ctrl-btn .btn-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+#controls-panel .ctrl-btn .btn-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+#controls-panel .ctrl-btn .btn-sub {
+  font-size: 8px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.panel-throttle-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-glass);
+  margin: 10px 0;
+}
+
+.panel-throttle-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.throttle-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.throttle-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+#controls-panel #throttle-slider {
+  width: 100%;
+  accent-color: var(--accent-gold);
+  height: 20px;
+  cursor: pointer;
+}
+
+.panel-cam-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-sub-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.panel-cam-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+#controls-panel .cam-dock-btn {
+  flex: 1;
+  width: auto;
+  height: 38px;
+  font-size: 15px;
+}
+
 /* Weather Panel Row */
 .weather-row {
   display: flex;
@@ -1010,10 +1147,10 @@ body.deck-view #canvas-container::after {
 @media (max-width: 680px) {
   #fab-col {
     right: 10px;
-    top: auto;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
-    transform: none;
+    top: 50%;
+    transform: translateY(-50%);
     flex-direction: column;
+    gap: 10px;
   }
 
   .fab-btn {
@@ -1023,24 +1160,59 @@ body.deck-view #canvas-container::after {
   }
 
   .side-panel {
-    right: 66px;
-    top: auto;
-    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
-    transform: translateX(16px);
-    min-width: 190px;
+    right: 64px;
+    top: 50%;
+    transform: translateY(-50%) translateX(16px);
+    min-width: 220px;
+    max-width: calc(100vw - 80px);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
   }
 
   .side-panel.open {
-    transform: translateX(0);
+    transform: translateY(-50%) translateX(0);
   }
 
-  .dock-cam-row {
-    gap: 6px;
+  #controls-panel {
+    min-width: 250px;
+    max-width: calc(100vw - 80px);
   }
 
-  .cam-dock-btn {
-    width: 40px;
-    height: 36px;
-    font-size: 14px;
+  #controls-panel .ctrl-btn {
+    height: 64px;
+  }
+}
+
+/* Left-Handed Layout Toggle */
+.left-handed-layout #fab-col {
+  right: auto;
+  left: 18px;
+}
+
+.left-handed-layout .side-panel {
+  right: auto;
+  left: 80px;
+  transform: translateY(-50%) translateX(-20px);
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.5);
+}
+
+.left-handed-layout .side-panel.open {
+  transform: translateY(-50%) translateX(0);
+}
+
+@media (max-width: 680px) {
+  .left-handed-layout #fab-col {
+    right: auto;
+    left: 10px;
+  }
+
+  .left-handed-layout .side-panel {
+    right: auto;
+    left: 64px;
+    transform: translateY(-50%) translateX(-16px);
+  }
+
+  .left-handed-layout .side-panel.open {
+    transform: translateY(-50%) translateX(0);
   }
 }
