@@ -100,6 +100,13 @@ class GameControls {
                 const btnG = document.getElementById('btn-graphics-fab');
                 if (btnG) btnG.classList.remove('panel-open');
             }
+            const cp = document.getElementById('controls-panel');
+            if (cp && cp.classList.contains('open')) {
+                cp.classList.remove('open');
+                cp.setAttribute('aria-hidden', 'true');
+                const btnC = document.getElementById('btn-controls-fab');
+                if (btnC) btnC.classList.remove('panel-open');
+            }
         });
 
         this.domElement.addEventListener('pointermove', (e) => {
@@ -418,12 +425,14 @@ class GameControls {
             });
         }
 
-        // Close panels when clicking outside
-        document.addEventListener('click', (e) => {
+        // Close panels when clicking or touching anywhere on the screen other than the panel itself
+        const handleOutsideDismiss = (e) => {
             if (!e.target.closest('#weather-panel') && !e.target.closest('#btn-weather-fab')) closeWeather();
             if (!e.target.closest('#graphics-panel') && !e.target.closest('#btn-graphics-fab')) closeGraphics();
-            if (!e.target.closest('#controls-panel') && !e.target.closest('#btn-controls-fab') && !e.target.closest('#canvas-container')) closeControls();
-        });
+            if (!e.target.closest('#controls-panel') && !e.target.closest('#btn-controls-fab')) closeControls();
+        };
+        window.addEventListener('pointerdown', handleOutsideDismiss, { passive: true });
+        window.addEventListener('touchstart', handleOutsideDismiss, { passive: true });
 
         // 8c. Weather day/dawn/night buttons in the weather panel
         const syncWeatherBtns = (presetKey) => {

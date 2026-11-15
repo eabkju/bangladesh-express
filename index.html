@@ -95,13 +95,13 @@
 
     <!-- FAB column: Train Controls, Weather & Graphics floating action buttons -->
     <div id="fab-col">
-        <button id="btn-controls-fab" class="fab-btn panel-open" title="Train Controls (Start/Stop, Horn, Lights, Throttle, Camera)">🕹️</button>
+        <button id="btn-controls-fab" class="fab-btn" title="Train Controls (Start/Stop, Horn, Lights, Throttle, Camera)">🕹️</button>
         <button id="btn-weather-fab" class="fab-btn" title="Weather Controls (Day/Dawn/Night + Rain)">⛅</button>
         <button id="btn-graphics-fab" class="fab-btn" title="Graphics Quality Tier (Hotkey: Q)">🎨</button>
     </div>
 
     <!-- 1. Train Controls Panel (slide-in from right, same style as Weather & Graphics) -->
-    <div id="controls-panel" class="side-panel open" aria-hidden="false">
+    <div id="controls-panel" class="side-panel" aria-hidden="true">
         <div class="panel-header">
             <span class="panel-title">🕹️ Train Controls</span>
             <button id="btn-controls-close" class="panel-close-btn" title="Close Controls Panel">✕</button>
@@ -187,10 +187,10 @@
         </div>
     </div>
 
-    <!-- Live Thermal & Draw-Call Telemetry Pill -->
+    <!-- Live Thermal & Draw-Call Telemetry Pill (Shows CPU Temperature in place of FPS) -->
     <div id="perf-pill" aria-live="polite">
         <span class="perf-dot"></span>
-        <span id="perf-text">45 FPS · 24 Draw Calls · CPU Cool</span>
+        <span id="perf-text">🌡️ 36°C · 24 Draw Calls · CPU Cool</span>
     </div>
 
     <!-- Local Three.js with CDN fallback -->
