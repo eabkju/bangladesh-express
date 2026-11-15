@@ -441,15 +441,15 @@ class VillageManager {
         return true;
     }
 
-    update(dt) {
+    update(dt, cameraPos) {
         for (let i = 0; i < this.farmers.length; i++) {
-            this.farmers[i].update(dt);
+            this.farmers[i].update(dt, cameraPos);
         }
         for (let i = 0; i < this.cows.length; i++) {
-            this.cows[i].update(dt);
+            this.cows[i].update(dt, cameraPos);
         }
         for (let i = 0; i < this.stallCustomers.length; i++) {
-            this.stallCustomers[i].update(dt);
+            this.stallCustomers[i].update(dt, cameraPos);
         }
     }
 }
@@ -471,6 +471,12 @@ class BengaliHomestead {
         this._buildCowshedAndHaystack();
         this._buildPaddyAndPond(cfg.paddyType);
         this.scene.add(this.group);
+
+        // Freeze static courtyard, huts & cowshed matrices to eliminate per-frame scene traversal
+        this.group.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     _buildCourtyardAndHuts() {
@@ -607,6 +613,12 @@ class BengaliTeaStall {
         this._buildSignboard();
 
         this.scene.add(this.root);
+
+        // Freeze static stall structure matrices to eliminate per-frame scene traversal
+        this.root.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     _buildStallStructure() {
@@ -730,6 +742,12 @@ class BengaliSweetShop {
         this._buildSignboard();
 
         this.scene.add(this.root);
+
+        // Freeze static stall structure matrices to eliminate per-frame scene traversal
+        this.root.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     _buildStructure() {
@@ -938,13 +956,16 @@ class BengaliFarmer {
         return (this.state === 'HEADING_HOME' || this.state === 'HEADING_FARM');
     }
 
-    update(dt) {
-        // Strict Track Envelope Safety Guard: Never allow farmer closer than 6.0m to any rail
-        if (this.trackSystem) {
-            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
-            if (trackDist < 6.0) {
-                this.currentPos.lerp(this.homePos, 0.25);
-                this.root.position.copy(this.currentPos);
+    update(dt, cameraPos) {
+        // Strict Track Envelope Safety Guard: Only run when actually moving, throttled to every 12 frames
+        if (this.isMoving() && this.trackSystem) {
+            this._safetyTimer = (this._safetyTimer || 0) + 1;
+            if (this._safetyTimer % 12 === 0) {
+                const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 16);
+                if (trackDist < 6.0) {
+                    this.currentPos.lerp(this.homePos, 0.25);
+                    this.root.position.copy(this.currentPos);
+                }
             }
         }
 
@@ -962,6 +983,9 @@ class BengaliFarmer {
             return;
         }
 
+        // AI LOD Distance Culling: When far from camera (>95m), skip limb trigonometric rotation math
+        const isFar = cameraPos && (this.currentPos.distanceToSquared(cameraPos) > 9000);
+
         if (this.state === 'HEADING_HOME' || this.state === 'HEADING_FARM') {
             this._dir.subVectors(this.targetPos, this.currentPos);
             this._dir.y = 0;
@@ -971,17 +995,18 @@ class BengaliFarmer {
                 this._dir.normalize();
                 this.currentPos.addScaledVector(this._dir, Math.min(dist, this.speed * dt));
                 this.root.position.copy(this.currentPos);
-
                 this.root.rotation.y = Math.atan2(this._dir.x, this._dir.z);
 
-                this.walkPhase += dt * 6.2;
-                const swing = Math.sin(this.walkPhase) * 0.52;
-                this.leftLeg.rotation.x = swing;
-                this.rightLeg.rotation.x = -swing;
-                this.leftArm.rotation.x = -swing * 0.7;
-                this.rightArm.rotation.x = swing * 0.7;
-                this.torsoMesh.rotation.x = 0;
-                this.headGroup.rotation.x = 0;
+                if (!isFar) {
+                    this.walkPhase += dt * 6.2;
+                    const swing = Math.sin(this.walkPhase) * 0.52;
+                    this.leftLeg.rotation.x = swing;
+                    this.rightLeg.rotation.x = -swing;
+                    this.leftArm.rotation.x = -swing * 0.7;
+                    this.rightArm.rotation.x = swing * 0.7;
+                    this.torsoMesh.rotation.x = 0;
+                    this.headGroup.rotation.x = 0;
+                }
             } else {
                 if (this.state === 'HEADING_HOME') {
                     this.state = 'AT_HOME';
@@ -993,6 +1018,8 @@ class BengaliFarmer {
             }
             return;
         }
+
+        if (isFar) return; // Stationary & far away: zero matrix animation math!
 
         if (this.state === 'AT_HOME') {
             // Resting at home / courtyard in evening and night
@@ -1136,13 +1163,16 @@ class DesiZebuCow {
         return (this.state === 'HEADING_HOME' || this.state === 'HEADING_PASTURE');
     }
 
-    update(dt) {
-        // Strict Track Envelope Safety Guard: Never allow cattle closer than 6.0m to any rail
-        if (this.trackSystem) {
-            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
-            if (trackDist < 6.0) {
-                this.currentPos.lerp(this.homePos, 0.25);
-                this.root.position.copy(this.currentPos);
+    update(dt, cameraPos) {
+        // Strict Track Envelope Safety Guard: Only run when actually moving, throttled to every 12 frames
+        if (this.isMoving() && this.trackSystem) {
+            this._safetyTimer = (this._safetyTimer || 0) + 1;
+            if (this._safetyTimer % 12 === 0) {
+                const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 16);
+                if (trackDist < 6.0) {
+                    this.currentPos.lerp(this.homePos, 0.25);
+                    this.root.position.copy(this.currentPos);
+                }
             }
         }
 
@@ -1154,6 +1184,9 @@ class DesiZebuCow {
             return;
         }
 
+        // AI LOD Distance Culling: When far from camera (>95m), skip leg/tail/neck trigonometric rotation math
+        const isFar = cameraPos && (this.currentPos.distanceToSquared(cameraPos) > 9000);
+
         if (this.state === 'HEADING_HOME' || this.state === 'HEADING_PASTURE') {
             this._dir.subVectors(this.targetPos, this.currentPos);
             this._dir.y = 0;
@@ -1163,20 +1196,23 @@ class DesiZebuCow {
                 this._dir.normalize();
                 this.currentPos.addScaledVector(this._dir, Math.min(dist, this.speed * dt));
                 this.root.position.copy(this.currentPos);
-
                 this.root.rotation.y = Math.atan2(this._dir.x, this._dir.z);
 
-                this.walkPhase += dt * 5.0;
-                const swing = Math.sin(this.walkPhase) * 0.4;
-                this.legFL.rotation.x = swing;
-                this.legFR.rotation.x = -swing;
-                this.legBL.rotation.x = -swing;
-                this.legBR.rotation.x = swing;
+                if (!isFar) {
+                    this.walkPhase += dt * 5.0;
+                    const swing = Math.sin(this.walkPhase) * 0.4;
+                    this.legFL.rotation.x = swing;
+                    this.legFR.rotation.x = -swing;
+                    this.legBL.rotation.x = -swing;
+                    this.legBR.rotation.x = swing;
+                }
             } else {
                 this.state = (this.state === 'HEADING_HOME') ? 'AT_HOME' : 'GRAZING';
             }
             return;
         }
+
+        if (isFar) return; // Stationary & far away: zero matrix animation math!
 
         if (this.state === 'AT_HOME') {
             // Resting inside/beside the cowshed (গোয়ালঘর)
@@ -1295,7 +1331,8 @@ class BengaliStallPerson {
         this.root.add(pGroup);
     }
 
-    update(dt) {
+    update(dt, cameraPos) {
+        if (cameraPos && this.root.position.distanceToSquared(cameraPos) > 9000) return;
         this.sipTimer += dt;
         // Sip tea periodically
         const sipCycle = Math.sin(this.sipTimer * 1.2);

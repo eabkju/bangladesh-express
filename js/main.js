@@ -343,7 +343,7 @@
         locomotive.update(dt, moved);
         weatherManager.update(dt, trainPhysics.currentPosition);
         envManager.update(trainPhysics.progress, dt);
-        if (villageManager) villageManager.update(dt);
+        if (villageManager) villageManager.update(dt, camera ? camera.position : null);
         gameControls.update(dt);
         gameControls.cameraMovedRecently = false;
 

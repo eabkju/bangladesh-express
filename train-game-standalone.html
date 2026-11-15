@@ -1487,8 +1487,8 @@ window.GAME_CONFIG = {
         modes: [
             { id: 'low',      name: 'Low',      label: '⚡ Low 30 FPS',      fpsCap: 30, maxDpr: 0.85, lodDistance: 900  },
             { id: 'moderate', name: 'Moderate', label: '🌿 Moderate 40 FPS', fpsCap: 40, maxDpr: 1.0,  lodDistance: 1500 },
-            { id: 'medium',   name: 'Medium',   label: '✨ Medium 50 FPS',   fpsCap: 50, maxDpr: 1.35, lodDistance: 2100 },
-            { id: 'high',     name: 'High',     label: '🚀 High 60 FPS',     fpsCap: 60, maxDpr: 2.0,  lodDistance: 2600 }
+            { id: 'medium',   name: 'Medium',   label: '✨ Medium 50 FPS',   fpsCap: 50, maxDpr: 1.25, lodDistance: 2000 },
+            { id: 'high',     name: 'High',     label: '🚀 High 60 FPS',     fpsCap: 60, maxDpr: 1.35, lodDistance: 2400 }
         ],
         defaultModeIndex: 1 // Default to Moderate 40 FPS for balanced performance & battery
     },
@@ -2035,6 +2035,12 @@ class TrackSystem {
         this.buildRails();
         this.buildSleepers();
         this.buildBridgeOverpass();
+
+        // Freeze static track matrices to eliminate per-frame scene traversal overhead
+        this.trackGroup.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     initSplineAndBakeTable() {
@@ -2151,9 +2157,12 @@ class TrackSystem {
     // Fast Track Safety Clearance Check (ensures trees, cottages & farms never encroach on tracks)
     getMinDistanceToTrack(x, z, step = 16) {
         let minSq = Infinity;
-        for (let i = 0; i <= this.N; i += step) {
-            const dx = x - this.X[i];
-            const dz = z - this.Z[i];
+        const X = this.X;
+        const Z = this.Z;
+        const N = this.N;
+        for (let i = 0; i <= N; i += step) {
+            const dx = x - X[i];
+            const dz = z - Z[i];
             const sq = dx * dx + dz * dz;
             if (sq < minSq) minSq = sq;
         }
@@ -3424,8 +3433,9 @@ class TrainLocomotive {
                 this.brakeHandle.rotation.x = this.physics.isRunning ? 0.35 : -0.35;
             }
             if (this.wiperArm) {
-                // Sweep wiper arm when rain is active
-                const isRaining = this.physics.isRaining || document.getElementById('btn-rain')?.classList.contains('active');
+                // Sweep wiper arm when rain is active (cached element, zero per-frame DOM search overhead)
+                if (!this._rainToggleBtn) this._rainToggleBtn = document.getElementById('btn-rain-toggle');
+                const isRaining = this.physics.isRaining || (this._rainToggleBtn && this._rainToggleBtn.dataset.on === 'true');
                 if (isRaining) {
                     this.wiperArm.rotation.z = Math.sin(performance.now() * 0.005) * 0.75;
                 } else {
@@ -3647,6 +3657,8 @@ class EnvironmentManager {
         groundGeo.computeVertexNormals();
 
         const groundMesh = new THREE.Mesh(groundGeo, this.materials.terrain);
+        groundMesh.matrixAutoUpdate = false;
+        groundMesh.updateMatrix();
         this.scene.add(groundMesh);
 
         // Scenic Mirror Lake inside the South Loop (around x=0, z=680)
@@ -3704,6 +3716,10 @@ class EnvironmentManager {
         lilyInst.instanceMatrix.needsUpdate = true;
         lakeGroup.add(lilyInst);
 
+        lakeGroup.traverse((c) => {
+            c.matrixAutoUpdate = false;
+            c.updateMatrix();
+        });
         this.scene.add(lakeGroup);
     }
 
@@ -3840,6 +3856,10 @@ class EnvironmentManager {
         stGroup.add(signBoard);
 
         stGroup.add(bldgGroup);
+        stGroup.traverse((c) => {
+            c.matrixAutoUpdate = false;
+            c.updateMatrix();
+        });
         this.scene.add(stGroup);
     }
 
@@ -3968,10 +3988,17 @@ class EnvironmentManager {
         armInst.instanceMatrix.needsUpdate = true;
         bulbInst.instanceMatrix.needsUpdate = true;
 
+        [poleInst, armInst, bulbInst].forEach(inst => {
+            inst.matrixAutoUpdate = false;
+            inst.updateMatrix();
+        });
         this.scene.add(poleInst, armInst, bulbInst);
 
         const wireGeo = new THREE.BufferGeometry().setFromPoints(wirePoints);
-        this.scene.add(new THREE.Line(wireGeo, this.materials.wire));
+        const wireLine = new THREE.Line(wireGeo, this.materials.wire);
+        wireLine.matrixAutoUpdate = false;
+        wireLine.updateMatrix();
+        this.scene.add(wireLine);
     }
 
     // 100% Instanced Multi-Species Forest, Shrubs & Cliff Boulders (5 draw calls instead of 900+!)
@@ -4135,6 +4162,10 @@ class EnvironmentManager {
         bushInst.instanceMatrix.needsUpdate = true;
         rockInst.instanceMatrix.needsUpdate = true;
 
+        [trunkInst, pineInst, oakInst, bushInst, rockInst].forEach(inst => {
+            inst.matrixAutoUpdate = false;
+            inst.updateMatrix();
+        });
         this.scene.add(trunkInst, pineInst, oakInst, bushInst, rockInst);
     }
 
@@ -4198,6 +4229,10 @@ class EnvironmentManager {
 
         bodyInst.instanceMatrix.needsUpdate = true;
         roofInst.instanceMatrix.needsUpdate = true;
+        [bodyInst, roofInst].forEach(inst => {
+            inst.matrixAutoUpdate = false;
+            inst.updateMatrix();
+        });
         this.scene.add(bodyInst, roofInst);
     }
 
@@ -4684,15 +4719,15 @@ class VillageManager {
         return true;
     }
 
-    update(dt) {
+    update(dt, cameraPos) {
         for (let i = 0; i < this.farmers.length; i++) {
-            this.farmers[i].update(dt);
+            this.farmers[i].update(dt, cameraPos);
         }
         for (let i = 0; i < this.cows.length; i++) {
-            this.cows[i].update(dt);
+            this.cows[i].update(dt, cameraPos);
         }
         for (let i = 0; i < this.stallCustomers.length; i++) {
-            this.stallCustomers[i].update(dt);
+            this.stallCustomers[i].update(dt, cameraPos);
         }
     }
 }
@@ -4714,6 +4749,12 @@ class BengaliHomestead {
         this._buildCowshedAndHaystack();
         this._buildPaddyAndPond(cfg.paddyType);
         this.scene.add(this.group);
+
+        // Freeze static courtyard, huts & cowshed matrices to eliminate per-frame scene traversal
+        this.group.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     _buildCourtyardAndHuts() {
@@ -4850,6 +4891,12 @@ class BengaliTeaStall {
         this._buildSignboard();
 
         this.scene.add(this.root);
+
+        // Freeze static stall structure matrices to eliminate per-frame scene traversal
+        this.root.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     _buildStallStructure() {
@@ -4973,6 +5020,12 @@ class BengaliSweetShop {
         this._buildSignboard();
 
         this.scene.add(this.root);
+
+        // Freeze static stall structure matrices to eliminate per-frame scene traversal
+        this.root.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     _buildStructure() {
@@ -5181,13 +5234,16 @@ class BengaliFarmer {
         return (this.state === 'HEADING_HOME' || this.state === 'HEADING_FARM');
     }
 
-    update(dt) {
-        // Strict Track Envelope Safety Guard: Never allow farmer closer than 6.0m to any rail
-        if (this.trackSystem) {
-            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
-            if (trackDist < 6.0) {
-                this.currentPos.lerp(this.homePos, 0.25);
-                this.root.position.copy(this.currentPos);
+    update(dt, cameraPos) {
+        // Strict Track Envelope Safety Guard: Only run when actually moving, throttled to every 12 frames
+        if (this.isMoving() && this.trackSystem) {
+            this._safetyTimer = (this._safetyTimer || 0) + 1;
+            if (this._safetyTimer % 12 === 0) {
+                const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 16);
+                if (trackDist < 6.0) {
+                    this.currentPos.lerp(this.homePos, 0.25);
+                    this.root.position.copy(this.currentPos);
+                }
             }
         }
 
@@ -5205,6 +5261,9 @@ class BengaliFarmer {
             return;
         }
 
+        // AI LOD Distance Culling: When far from camera (>95m), skip limb trigonometric rotation math
+        const isFar = cameraPos && (this.currentPos.distanceToSquared(cameraPos) > 9000);
+
         if (this.state === 'HEADING_HOME' || this.state === 'HEADING_FARM') {
             this._dir.subVectors(this.targetPos, this.currentPos);
             this._dir.y = 0;
@@ -5214,17 +5273,18 @@ class BengaliFarmer {
                 this._dir.normalize();
                 this.currentPos.addScaledVector(this._dir, Math.min(dist, this.speed * dt));
                 this.root.position.copy(this.currentPos);
-
                 this.root.rotation.y = Math.atan2(this._dir.x, this._dir.z);
 
-                this.walkPhase += dt * 6.2;
-                const swing = Math.sin(this.walkPhase) * 0.52;
-                this.leftLeg.rotation.x = swing;
-                this.rightLeg.rotation.x = -swing;
-                this.leftArm.rotation.x = -swing * 0.7;
-                this.rightArm.rotation.x = swing * 0.7;
-                this.torsoMesh.rotation.x = 0;
-                this.headGroup.rotation.x = 0;
+                if (!isFar) {
+                    this.walkPhase += dt * 6.2;
+                    const swing = Math.sin(this.walkPhase) * 0.52;
+                    this.leftLeg.rotation.x = swing;
+                    this.rightLeg.rotation.x = -swing;
+                    this.leftArm.rotation.x = -swing * 0.7;
+                    this.rightArm.rotation.x = swing * 0.7;
+                    this.torsoMesh.rotation.x = 0;
+                    this.headGroup.rotation.x = 0;
+                }
             } else {
                 if (this.state === 'HEADING_HOME') {
                     this.state = 'AT_HOME';
@@ -5236,6 +5296,8 @@ class BengaliFarmer {
             }
             return;
         }
+
+        if (isFar) return; // Stationary & far away: zero matrix animation math!
 
         if (this.state === 'AT_HOME') {
             // Resting at home / courtyard in evening and night
@@ -5379,13 +5441,16 @@ class DesiZebuCow {
         return (this.state === 'HEADING_HOME' || this.state === 'HEADING_PASTURE');
     }
 
-    update(dt) {
-        // Strict Track Envelope Safety Guard: Never allow cattle closer than 6.0m to any rail
-        if (this.trackSystem) {
-            const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 8);
-            if (trackDist < 6.0) {
-                this.currentPos.lerp(this.homePos, 0.25);
-                this.root.position.copy(this.currentPos);
+    update(dt, cameraPos) {
+        // Strict Track Envelope Safety Guard: Only run when actually moving, throttled to every 12 frames
+        if (this.isMoving() && this.trackSystem) {
+            this._safetyTimer = (this._safetyTimer || 0) + 1;
+            if (this._safetyTimer % 12 === 0) {
+                const trackDist = this.trackSystem.getMinDistanceToTrack(this.currentPos.x, this.currentPos.z, 16);
+                if (trackDist < 6.0) {
+                    this.currentPos.lerp(this.homePos, 0.25);
+                    this.root.position.copy(this.currentPos);
+                }
             }
         }
 
@@ -5397,6 +5462,9 @@ class DesiZebuCow {
             return;
         }
 
+        // AI LOD Distance Culling: When far from camera (>95m), skip leg/tail/neck trigonometric rotation math
+        const isFar = cameraPos && (this.currentPos.distanceToSquared(cameraPos) > 9000);
+
         if (this.state === 'HEADING_HOME' || this.state === 'HEADING_PASTURE') {
             this._dir.subVectors(this.targetPos, this.currentPos);
             this._dir.y = 0;
@@ -5406,20 +5474,23 @@ class DesiZebuCow {
                 this._dir.normalize();
                 this.currentPos.addScaledVector(this._dir, Math.min(dist, this.speed * dt));
                 this.root.position.copy(this.currentPos);
-
                 this.root.rotation.y = Math.atan2(this._dir.x, this._dir.z);
 
-                this.walkPhase += dt * 5.0;
-                const swing = Math.sin(this.walkPhase) * 0.4;
-                this.legFL.rotation.x = swing;
-                this.legFR.rotation.x = -swing;
-                this.legBL.rotation.x = -swing;
-                this.legBR.rotation.x = swing;
+                if (!isFar) {
+                    this.walkPhase += dt * 5.0;
+                    const swing = Math.sin(this.walkPhase) * 0.4;
+                    this.legFL.rotation.x = swing;
+                    this.legFR.rotation.x = -swing;
+                    this.legBL.rotation.x = -swing;
+                    this.legBR.rotation.x = swing;
+                }
             } else {
                 this.state = (this.state === 'HEADING_HOME') ? 'AT_HOME' : 'GRAZING';
             }
             return;
         }
+
+        if (isFar) return; // Stationary & far away: zero matrix animation math!
 
         if (this.state === 'AT_HOME') {
             // Resting inside/beside the cowshed (গোয়ালঘর)
@@ -5538,7 +5609,8 @@ class BengaliStallPerson {
         this.root.add(pGroup);
     }
 
-    update(dt) {
+    update(dt, cameraPos) {
+        if (cameraPos && this.root.position.distanceToSquared(cameraPos) > 9000) return;
         this.sipTimer += dt;
         // Sip tea periodically
         const sipCycle = Math.sin(this.sipTimer * 1.2);
@@ -7055,7 +7127,7 @@ class GameControls {
         locomotive.update(dt, moved);
         weatherManager.update(dt, trainPhysics.currentPosition);
         envManager.update(trainPhysics.progress, dt);
-        if (villageManager) villageManager.update(dt);
+        if (villageManager) villageManager.update(dt, camera ? camera.position : null);
         gameControls.update(dt);
         gameControls.cameraMovedRecently = false;
 

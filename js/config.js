@@ -60,8 +60,8 @@ window.GAME_CONFIG = {
         modes: [
             { id: 'low',      name: 'Low',      label: '⚡ Low 30 FPS',      fpsCap: 30, maxDpr: 0.85, lodDistance: 900  },
             { id: 'moderate', name: 'Moderate', label: '🌿 Moderate 40 FPS', fpsCap: 40, maxDpr: 1.0,  lodDistance: 1500 },
-            { id: 'medium',   name: 'Medium',   label: '✨ Medium 50 FPS',   fpsCap: 50, maxDpr: 1.35, lodDistance: 2100 },
-            { id: 'high',     name: 'High',     label: '🚀 High 60 FPS',     fpsCap: 60, maxDpr: 2.0,  lodDistance: 2600 }
+            { id: 'medium',   name: 'Medium',   label: '✨ Medium 50 FPS',   fpsCap: 50, maxDpr: 1.25, lodDistance: 2000 },
+            { id: 'high',     name: 'High',     label: '🚀 High 60 FPS',     fpsCap: 60, maxDpr: 1.35, lodDistance: 2400 }
         ],
         defaultModeIndex: 1 // Default to Moderate 40 FPS for balanced performance & battery
     },

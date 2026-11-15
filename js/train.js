@@ -828,8 +828,9 @@ class TrainLocomotive {
                 this.brakeHandle.rotation.x = this.physics.isRunning ? 0.35 : -0.35;
             }
             if (this.wiperArm) {
-                // Sweep wiper arm when rain is active
-                const isRaining = this.physics.isRaining || document.getElementById('btn-rain')?.classList.contains('active');
+                // Sweep wiper arm when rain is active (cached element, zero per-frame DOM search overhead)
+                if (!this._rainToggleBtn) this._rainToggleBtn = document.getElementById('btn-rain-toggle');
+                const isRaining = this.physics.isRaining || (this._rainToggleBtn && this._rainToggleBtn.dataset.on === 'true');
                 if (isRaining) {
                     this.wiperArm.rotation.z = Math.sin(performance.now() * 0.005) * 0.75;
                 } else {

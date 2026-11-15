@@ -25,6 +25,12 @@ class TrackSystem {
         this.buildRails();
         this.buildSleepers();
         this.buildBridgeOverpass();
+
+        // Freeze static track matrices to eliminate per-frame scene traversal overhead
+        this.trackGroup.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
     }
 
     initSplineAndBakeTable() {
@@ -141,9 +147,12 @@ class TrackSystem {
     // Fast Track Safety Clearance Check (ensures trees, cottages & farms never encroach on tracks)
     getMinDistanceToTrack(x, z, step = 16) {
         let minSq = Infinity;
-        for (let i = 0; i <= this.N; i += step) {
-            const dx = x - this.X[i];
-            const dz = z - this.Z[i];
+        const X = this.X;
+        const Z = this.Z;
+        const N = this.N;
+        for (let i = 0; i <= N; i += step) {
+            const dx = x - X[i];
+            const dz = z - Z[i];
             const sq = dx * dx + dz * dz;
             if (sq < minSq) minSq = sq;
         }

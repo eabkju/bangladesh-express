@@ -109,6 +109,8 @@ class EnvironmentManager {
         groundGeo.computeVertexNormals();
 
         const groundMesh = new THREE.Mesh(groundGeo, this.materials.terrain);
+        groundMesh.matrixAutoUpdate = false;
+        groundMesh.updateMatrix();
         this.scene.add(groundMesh);
 
         // Scenic Mirror Lake inside the South Loop (around x=0, z=680)
@@ -166,6 +168,10 @@ class EnvironmentManager {
         lilyInst.instanceMatrix.needsUpdate = true;
         lakeGroup.add(lilyInst);
 
+        lakeGroup.traverse((c) => {
+            c.matrixAutoUpdate = false;
+            c.updateMatrix();
+        });
         this.scene.add(lakeGroup);
     }
 
@@ -302,6 +308,10 @@ class EnvironmentManager {
         stGroup.add(signBoard);
 
         stGroup.add(bldgGroup);
+        stGroup.traverse((c) => {
+            c.matrixAutoUpdate = false;
+            c.updateMatrix();
+        });
         this.scene.add(stGroup);
     }
 
@@ -430,10 +440,17 @@ class EnvironmentManager {
         armInst.instanceMatrix.needsUpdate = true;
         bulbInst.instanceMatrix.needsUpdate = true;
 
+        [poleInst, armInst, bulbInst].forEach(inst => {
+            inst.matrixAutoUpdate = false;
+            inst.updateMatrix();
+        });
         this.scene.add(poleInst, armInst, bulbInst);
 
         const wireGeo = new THREE.BufferGeometry().setFromPoints(wirePoints);
-        this.scene.add(new THREE.Line(wireGeo, this.materials.wire));
+        const wireLine = new THREE.Line(wireGeo, this.materials.wire);
+        wireLine.matrixAutoUpdate = false;
+        wireLine.updateMatrix();
+        this.scene.add(wireLine);
     }
 
     // 100% Instanced Multi-Species Forest, Shrubs & Cliff Boulders (5 draw calls instead of 900+!)
@@ -597,6 +614,10 @@ class EnvironmentManager {
         bushInst.instanceMatrix.needsUpdate = true;
         rockInst.instanceMatrix.needsUpdate = true;
 
+        [trunkInst, pineInst, oakInst, bushInst, rockInst].forEach(inst => {
+            inst.matrixAutoUpdate = false;
+            inst.updateMatrix();
+        });
         this.scene.add(trunkInst, pineInst, oakInst, bushInst, rockInst);
     }
 
@@ -660,6 +681,10 @@ class EnvironmentManager {
 
         bodyInst.instanceMatrix.needsUpdate = true;
         roofInst.instanceMatrix.needsUpdate = true;
+        [bodyInst, roofInst].forEach(inst => {
+            inst.matrixAutoUpdate = false;
+            inst.updateMatrix();
+        });
         this.scene.add(bodyInst, roofInst);
     }
 
