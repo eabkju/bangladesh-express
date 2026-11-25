@@ -932,11 +932,158 @@ body.deck-view #canvas-container::after {
   font-variant-numeric: tabular-nums;
 }
 
-#controls-panel #throttle-slider {
+#controls-panel #throttle-slider,
+#controls-panel #brake-slider {
   width: 100%;
   accent-color: var(--accent-gold);
   height: 20px;
   cursor: pointer;
+}
+
+#controls-panel #brake-slider {
+  accent-color: #ef4444;
+}
+
+.reverser-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.rev-btn {
+  flex: 1;
+  padding: 5px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rev-btn.active {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.notch-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notch-step-btn {
+  width: 24px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notch-step-btn:active {
+  background: rgba(250, 204, 21, 0.3);
+}
+
+/* Journey Pill, Scorecard & Prompt */
+#journey-pill {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 60px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(10, 18, 32, 0.72);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#journey-signal-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px currentColor;
+  flex-shrink: 0;
+}
+
+#journey-scorecard {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 92px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  z-index: 44;
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(10, 18, 32, 0.88);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(12px);
+  color: #cbd5e1;
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#journey-scorecard.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+#journey-scorecard > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#journey-scorecard strong {
+  color: var(--accent-gold);
+  font-size: 13px;
+}
+
+#journey-prompt {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 12px) + 52px);
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  z-index: 46;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(10, 18, 32, 0.88);
+  border: 1.5px solid var(--accent-gold);
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+}
+
+#journey-prompt.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .panel-cam-box {
@@ -1261,6 +1408,18 @@ body.deck-view #canvas-container::after {
         </button>
     </header>
 
+    <!-- Journey Status Pill & Scorecard -->
+    <div id="journey-pill" title="Tap for Journey Scorecard">
+        <span id="journey-signal-dot"></span>
+        <span id="journey-text">Greenlands Jn · --m · Max 80</span>
+    </div>
+    <div id="journey-scorecard">
+        <div><span>Distance</span><strong id="journey-dist-val">0.00 km</strong></div>
+        <div><span>Stations</span><strong id="journey-stops-val">0</strong></div>
+        <div><span>Score</span><strong id="journey-score-val">0</strong></div>
+    </div>
+    <div id="journey-prompt"></div>
+
     <!-- Slide-Over Menu Drawer (Mobile & Desktop) -->
     <aside id="menu-drawer" class="menu-drawer" aria-label="Simulator Settings">
         <div class="drawer-header">
@@ -1279,6 +1438,10 @@ body.deck-view #canvas-container::after {
             </div>
             <div class="menu-section">
                 <h4>Controls &amp; Layout</h4>
+                <button id="btn-toggle-procab" class="menu-action-btn">
+                    <span>Pro Cab Mode (8-Notch)</span>
+                    <span class="menu-val">ON</span>
+                </button>
                 <button id="btn-toggle-left-hand" class="menu-action-btn">
                     <span>Left-Handed Layout</span>
                     <span class="menu-val">OFF</span>
@@ -1299,8 +1462,10 @@ body.deck-view #canvas-container::after {
             <div class="menu-section">
                 <h4>Keyboard Shortcuts</h4>
                 <div class="shortcuts-grid">
-                    <div><kbd>Space</kbd> Start / Stop</div>
-                    <div><kbd>W / S</kbd> Throttle Up / Down</div>
+                    <div><kbd>Space</kbd> Brake / Go</div>
+                    <div><kbd>W / S</kbd> Notch Up / Down</div>
+                    <div><kbd>B</kbd> Air Brake</div>
+                    <div><kbd>F / V</kbd> Reverser Fwd / Rev</div>
                     <div><kbd>H</kbd> Train Horn</div>
                     <div><kbd>L</kbd> Headlights</div>
                     <div><kbd>C</kbd> Camera Mode</div>
@@ -1346,13 +1511,33 @@ body.deck-view #canvas-container::after {
             </button>
         </div>
 
-        <!-- Cruise Throttle Slider Section -->
+        <!-- Reverser (Pro Cab Mode) -->
+        <div id="pro-cab-reverser" class="reverser-row">
+            <button id="btn-rev-back" class="rev-btn" data-rev="-1">REV</button>
+            <button id="btn-rev-neu" class="rev-btn" data-rev="0">NEU</button>
+            <button id="btn-rev-fwd" class="rev-btn active" data-rev="1">FWD</button>
+        </div>
+
+        <!-- Cruise Throttle / Notch Slider Section -->
         <div class="panel-throttle-box">
             <div class="panel-throttle-head">
-                <span class="throttle-title">Throttle</span>
-                <span id="throttle-val-display" class="throttle-badge">85%</span>
+                <span id="throttle-title-label" class="throttle-title">Notch</span>
+                <div class="notch-stepper" id="notch-stepper">
+                    <button id="btn-notch-down" class="notch-step-btn" title="Notch Down (S)">−</button>
+                    <span id="throttle-val-display" class="throttle-badge">N5</span>
+                    <button id="btn-notch-up" class="notch-step-btn" title="Notch Up (W)">+</button>
+                </div>
             </div>
-            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed (Hotkeys: W/S or ↑/↓)">
+            <input id="throttle-slider" type="range" min="0" max="8" step="1" value="5" title="Adjust Throttle Notch (Hotkeys: W/S or ↑/↓)">
+        </div>
+
+        <!-- Air Brake Slider (Pro Cab Mode) -->
+        <div id="pro-cab-brake-box" class="panel-throttle-box" style="margin-top:0; border-top:none; padding-top:0;">
+            <div class="panel-throttle-head">
+                <span class="throttle-title">Air Brake</span>
+                <span id="brake-val-display" class="throttle-badge" style="color:#f87171;">0% (REL)</span>
+            </div>
+            <input id="brake-slider" type="range" min="0" max="100" step="5" value="0" title="Adjust Air Brake (Hotkey: B)">
         </div>
 
         <!-- Camera Navigation: Zoom +, Zoom -, Recenter -->
@@ -1429,10 +1614,11 @@ body.deck-view #canvas-container::after {
 window.GAME_CONFIG = {
     // Train & Carriages Physics
     train: {
-        maxSpeed: 16.5,         // Maximum cruising speed (m/s, ~60 km/h)
-        acceleration: 2.6,      // Smooth acceleration rate (m/s^2)
-        deceleration: 4.0,      // Responsive braking rate (m/s^2)
-        friction: 0.35,         // Coasting natural friction (m/s^2)
+        maxSpeed: 22.2,         // Maximum cruising speed (m/s, ~80 km/h)
+        acceleration: 2.4,      // Smooth tractive acceleration rate (m/s^2)
+        deceleration: 4.5,      // Responsive air-brake deceleration rate (m/s^2)
+        friction: 0.28,         // Coasting rolling friction (m/s^2)
+        proCabDefault: true,    // Default to 8-Notch Pro Cab Mode
         wheelRadius: 0.52,      // Wheel radius in meters
         bogieDistance: 6.8,     // Distance between locomotive front and rear bogies
         length: 12.2,           // Total locomotive length
@@ -1592,6 +1778,47 @@ window.GAME_CONFIG = {
     }
 };
 
+// Lightweight zero-dependency BufferGeometry merger for draw-call reduction
+window.mergeStaticGeometries = function(geometries) {
+    if (!geometries || geometries.length === 0) return null;
+    const nonIndexed = geometries.map(g => g.index ? g.toNonIndexed() : g);
+
+    let totalVerts = 0;
+    let hasNormals = true;
+    let hasUvs = true;
+    for (let i = 0; i < nonIndexed.length; i++) {
+        const pos = nonIndexed[i].attributes.position;
+        if (!pos) continue;
+        totalVerts += pos.count;
+        if (!nonIndexed[i].attributes.normal) hasNormals = false;
+        if (!nonIndexed[i].attributes.uv) hasUvs = false;
+    }
+
+    const posArr = new Float32Array(totalVerts * 3);
+    const normArr = hasNormals ? new Float32Array(totalVerts * 3) : null;
+    const uvArr = hasUvs ? new Float32Array(totalVerts * 2) : null;
+
+    let offset3 = 0;
+    let offset2 = 0;
+    for (let i = 0; i < nonIndexed.length; i++) {
+        const g = nonIndexed[i];
+        const pos = g.attributes.position;
+        if (!pos) continue;
+        posArr.set(pos.array, offset3);
+        if (normArr && g.attributes.normal) normArr.set(g.attributes.normal.array, offset3);
+        if (uvArr && g.attributes.uv) uvArr.set(g.attributes.uv.array, offset2);
+        offset3 += pos.count * 3;
+        offset2 += pos.count * 2;
+        if (g !== geometries[i]) g.dispose();
+    }
+
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    if (normArr) merged.setAttribute('normal', new THREE.BufferAttribute(normArr, 3));
+    if (uvArr) merged.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+    return merged;
+};
+
 </script>
 <script>
 // --- js/audio.js ---
@@ -1604,9 +1831,17 @@ class TrainAudioEngine {
         this.isInitialized = false;
         this.isMuted = false;
 
+        // Master & Cab Acoustic Muffler
         this.masterGain = null;
+        this.envFilter = null;
         this.analyser = null;
         this._analyserData = null;
+
+        // Spatial & Event Audio
+        this.bridgeGain = null;
+        this.squealGain = null;
+        this.jointBuffer = null;
+        this._lastBellT = 0;
 
         // Engine synthesis
         this.engineOsc1 = null;
@@ -1696,10 +1931,17 @@ class TrainAudioEngine {
         this.masterGain.gain.setValueAtTime(0.8, this.audioCtx.currentTime);
         this.masterGain.connect(this.analyser);
 
+        // Cab interior acoustic muffler filter (2200 Hz in Deck POV, 18000 Hz outside)
+        this.envFilter = this.audioCtx.createBiquadFilter();
+        this.envFilter.type = 'lowpass';
+        this.envFilter.frequency.setValueAtTime(18000, this.audioCtx.currentTime);
+        this.envFilter.connect(this.masterGain);
+
         this._buildSharedBuffers();
         this._setupDieselEngine();
         this._setupTrackRhythm();
         this._setupRainAmbience();
+        this._setupBridgeAndSqueal();
 
         this.isInitialized = true;
     }
@@ -1790,7 +2032,7 @@ class TrainAudioEngine {
 
         this.engineFilter.connect(this.chugGain);
         this.chugGain.connect(this.engineGain);
-        this.engineGain.connect(this.masterGain);
+        this.engineGain.connect(this.envFilter || this.masterGain);
 
         this.engineOsc1.start();
         this.engineOsc2.start();
@@ -1830,7 +2072,7 @@ class TrainAudioEngine {
 
         this.wheelSource.connect(hp);
         hp.connect(this.wheelGain);
-        this.wheelGain.connect(this.masterGain);
+        this.wheelGain.connect(this.envFilter || this.masterGain);
         this.wheelSource.start();
     }
 
@@ -1848,8 +2090,115 @@ class TrainAudioEngine {
 
         src.connect(filter);
         filter.connect(this.rainGain);
-        this.rainGain.connect(this.masterGain);
+        this.rainGain.connect(this.envFilter || this.masterGain);
         src.start();
+    }
+
+    _setupBridgeAndSqueal() {
+        const t = this.audioCtx.currentTime;
+        // 1. Bridge metallic rumble (lowpass noise)
+        const bSrc = this.audioCtx.createBufferSource();
+        bSrc.buffer = this.noiseBuffer;
+        bSrc.loop = true;
+        const bFilt = this.audioCtx.createBiquadFilter();
+        bFilt.type = 'bandpass';
+        bFilt.frequency.setValueAtTime(135, t);
+        bFilt.Q.setValueAtTime(1.8, t);
+        this.bridgeGain = this.audioCtx.createGain();
+        this.bridgeGain.gain.setValueAtTime(0.0, t);
+        bSrc.connect(bFilt);
+        bFilt.connect(this.bridgeGain);
+        this.bridgeGain.connect(this.envFilter || this.masterGain);
+        bSrc.start();
+
+        // 2. Brake squeal (high-Q bandpass noise)
+        const sSrc = this.audioCtx.createBufferSource();
+        sSrc.buffer = this.noiseBuffer;
+        sSrc.loop = true;
+        const sFilt = this.audioCtx.createBiquadFilter();
+        sFilt.type = 'bandpass';
+        sFilt.frequency.setValueAtTime(2450, t);
+        sFilt.Q.setValueAtTime(12.0, t);
+        this.squealGain = this.audioCtx.createGain();
+        this.squealGain.gain.setValueAtTime(0.0, t);
+        sSrc.connect(sFilt);
+        sFilt.connect(this.squealGain);
+        this.squealGain.connect(this.envFilter || this.masterGain);
+        sSrc.start();
+    }
+
+    setCabInteriorMode(isCab) {
+        if (!this.isInitialized || !this.audioCtx || !this.envFilter) return;
+        this.envFilter.frequency.setTargetAtTime(isCab ? 2200 : 18000, this.audioCtx.currentTime, 0.15);
+    }
+
+    setBridgeResonance(onBridge, speedRatio = 0.5) {
+        if (!this.isInitialized || !this.audioCtx || !this.bridgeGain) return;
+        const target = (onBridge && speedRatio > 0.05) ? Math.min(0.24, 0.08 + speedRatio * 0.16) : 0.0;
+        this.bridgeGain.gain.setTargetAtTime(target, this.audioCtx.currentTime, 0.12);
+    }
+
+    setBrakeSqueal(active) {
+        if (!this.isInitialized || !this.audioCtx || !this.squealGain) return;
+        this.squealGain.gain.setTargetAtTime(active ? 0.035 : 0.0, this.audioCtx.currentTime, 0.08);
+    }
+
+    playCrossingBell() {
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const now = performance.now();
+        if (now - this._lastBellT < 450) return;
+        this._lastBellT = now;
+
+        const t = this.audioCtx.currentTime;
+        const osc = this.audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1568, t); // G6 metallic bell
+        const g = this.audioCtx.createGain();
+        g.gain.setValueAtTime(0.08, t);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.28);
+        osc.connect(g);
+        g.connect(this.envFilter || this.masterGain);
+        osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (e) {} };
+        osc.start(t);
+        osc.stop(t + 0.30);
+    }
+
+    playGuardWhistle() {
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const t = this.audioCtx.currentTime;
+        const osc1 = this.audioCtx.createOscillator();
+        const osc2 = this.audioCtx.createOscillator();
+        osc1.type = 'triangle';
+        osc2.type = 'triangle';
+        osc1.frequency.setValueAtTime(2650, t);
+        osc2.frequency.setValueAtTime(2820, t);
+        const g = this.audioCtx.createGain();
+        g.gain.setValueAtTime(0.0, t);
+        g.gain.linearRampToValueAtTime(0.09, t + 0.03);
+        g.gain.setValueAtTime(0.09, t + 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.55);
+        osc1.connect(g);
+        osc2.connect(g);
+        g.connect(this.masterGain);
+        osc1.onended = () => { try { osc1.disconnect(); osc2.disconnect(); g.disconnect(); } catch (e) {} };
+        osc1.start(t); osc2.start(t);
+        osc1.stop(t + 0.58); osc2.stop(t + 0.58);
+    }
+
+    playStationBell() {
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const t = this.audioCtx.currentTime;
+        const osc = this.audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, t);
+        const g = this.audioCtx.createGain();
+        g.gain.setValueAtTime(0.12, t);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.65);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (e) {} };
+        osc.start(t);
+        osc.stop(t + 0.68);
     }
 
     toggleMute() {
@@ -2035,6 +2384,7 @@ class TrackSystem {
         this.buildRails();
         this.buildSleepers();
         this.buildBridgeOverpass();
+        this.buildRiverBridges();
 
         // Freeze static track matrices to eliminate per-frame scene traversal overhead
         this.trackGroup.traverse((child) => {
@@ -2074,13 +2424,15 @@ class TrackSystem {
             new THREE.Vector3(   120.0,  3.4, -200.0 ),
             new THREE.Vector3( W * 0.65, 1.3, -500.0 ),
 
-            // 6. North Village Loop
+            // 6. North Village Loop (with gentle 1.8m rise over River Khal at z = -935)
             new THREE.Vector3( W      , 0.0, -800.0 ),
+            new THREE.Vector3( W * 0.92, 1.8, -935.0 ),
             new THREE.Vector3( W * 0.8, 0.0, -L - 120.0 ),
             new THREE.Vector3( W * 0.4, 0.0, -L - 280.0 ),
             new THREE.Vector3(     0.0, 0.0, -L - 340.0 ),
             new THREE.Vector3(-W * 0.4, 0.0, -L - 280.0 ),
             new THREE.Vector3(-W * 0.8, 0.0, -L - 120.0 ),
+            new THREE.Vector3(-W * 0.92, 1.8, -935.0 ),
             new THREE.Vector3(-W      , 0.0, -800.0 ),
             new THREE.Vector3(-W * 0.7, 0.0, -500.0 )
         ];
@@ -2362,7 +2714,7 @@ class TrackSystem {
         this.trackGroup.add(instancedSleepers);
     }
 
-    // Grand Steel Truss & Concrete Pier Overpass Bridge at the Center Crossing
+    // Grand Steel Truss & Concrete Pier Overpass Bridge at the Center Crossing (3 merged draw calls)
     buildBridgeOverpass() {
         const bridgeGroup = new THREE.Group();
         const concreteMat = new THREE.MeshLambertMaterial({ color: 0x8e887f });
@@ -2372,58 +2724,112 @@ class TrackSystem {
         const bridgeAngle = -Math.atan2(120, 200);
         bridgeGroup.rotation.y = bridgeAngle;
 
+        const concreteGeoms = [];
+        const steelGeoms = [];
+        const accentGeoms = [];
+
+        const pushGeo = (list, geo, x, y, z, rx = 0) => {
+            if (rx) geo.rotateX(rx);
+            geo.translate(x, y, z);
+            list.push(geo);
+        };
+
         // 1. Concrete support piers (placed clear of the lower track)
         [-14, 14, -32, 32].forEach(zOff => {
             [-2.1, 2.1].forEach(xOff => {
                 const h = Math.abs(zOff) < 20 ? 4.8 : 4.2;
-                const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.72, h, 8), concreteMat);
-                pier.position.set(xOff, h * 0.5 - 0.1, zOff);
-                bridgeGroup.add(pier);
+                pushGeo(concreteGeoms, new THREE.CylinderGeometry(0.52, 0.72, h, 8), xOff, h * 0.5 - 0.1, zOff);
             });
-            const cap = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.45, 1.4), concreteMat);
-            cap.position.set(0, Math.abs(zOff) < 20 ? 4.55 : 3.95, zOff);
-            bridgeGroup.add(cap);
+            pushGeo(concreteGeoms, new THREE.BoxGeometry(5.2, 0.45, 1.4), 0, Math.abs(zOff) < 20 ? 4.55 : 3.95, zOff);
         });
 
         // 2. Main bridge deck & side girders
-        const deck = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.45, 76.0), steelMat);
-        deck.position.set(0, 4.72, 0);
-        bridgeGroup.add(deck);
+        pushGeo(steelGeoms, new THREE.BoxGeometry(4.8, 0.45, 76.0), 0, 4.72, 0);
 
         // 3. Overhead steel truss arches along central span (-22m to +22m)
         [-2.25, 2.25].forEach(xSide => {
-            // Bottom & top chords
-            const bottomChord = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 76.0), steelMat);
-            bottomChord.position.set(xSide, 5.1, 0);
-            bridgeGroup.add(bottomChord);
+            pushGeo(steelGeoms, new THREE.BoxGeometry(0.24, 0.28, 76.0), xSide, 5.1, 0);
+            pushGeo(steelGeoms, new THREE.BoxGeometry(0.26, 0.28, 44.0), xSide, 8.8, 0);
 
-            const topChord = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 44.0), steelMat);
-            topChord.position.set(xSide, 8.8, 0);
-            bridgeGroup.add(topChord);
-
-            // Vertical & diagonal truss struts
             for (let z = -20; z <= 20; z += 5) {
-                const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.8, 0.2), steelMat);
-                post.position.set(xSide, 6.95, z);
-                bridgeGroup.add(post);
-
+                pushGeo(steelGeoms, new THREE.BoxGeometry(0.2, 3.8, 0.2), xSide, 6.95, z);
                 if (z < 20) {
-                    const diag = new THREE.Mesh(new THREE.BoxGeometry(0.14, 6.1, 0.14), accentMat);
-                    diag.position.set(xSide, 6.95, z + 2.5);
-                    diag.rotation.x = (z % 10 === 0) ? 0.72 : -0.72;
-                    bridgeGroup.add(diag);
+                    const rx = (z % 10 === 0) ? 0.72 : -0.72;
+                    pushGeo(accentGeoms, new THREE.BoxGeometry(0.14, 6.1, 0.14), xSide, 6.95, z + 2.5, rx);
                 }
             }
         });
 
         // Overhead lateral portal beams
         for (let z = -20; z <= 20; z += 10) {
-            const portal = new THREE.Mesh(new THREE.BoxGeometry(4.7, 0.24, 0.28), steelMat);
-            portal.position.set(0, 8.8, z);
-            bridgeGroup.add(portal);
+            pushGeo(steelGeoms, new THREE.BoxGeometry(4.7, 0.24, 0.28), 0, 8.8, z);
+        }
+
+        if (window.mergeStaticGeometries) {
+            bridgeGroup.add(new THREE.Mesh(window.mergeStaticGeometries(concreteGeoms), concreteMat));
+            bridgeGroup.add(new THREE.Mesh(window.mergeStaticGeometries(steelGeoms), steelMat));
+            bridgeGroup.add(new THREE.Mesh(window.mergeStaticGeometries(accentGeoms), accentMat));
         }
 
         this.trackGroup.add(bridgeGroup);
+    }
+
+    // Two Steel Plate-Girder River Bridges over the North River / Khal (z = -935)
+    buildRiverBridges() {
+        const concreteMat = new THREE.MeshLambertMaterial({ color: 0x8e887f });
+        const girderMat = new THREE.MeshLambertMaterial({ color: 0x7c2d23 }); // Classic Bangladesh red-oxide steel bridge
+
+        const concreteGeoms = [];
+        const girderGeoms = [];
+        const m4 = new THREE.Matrix4();
+        const pos = new THREE.Vector3();
+        const tan = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        const euler = new THREE.Euler();
+        const scale = new THREE.Vector3(1, 1, 1);
+
+        // Find the 2 river crossing points (z near -935, y > 1.2)
+        const crossings = [];
+        for (let i = 0; i < this.N; i++) {
+            if (Math.abs(this.Z[i] + 935) < 6 && this.Y[i] > 1.3) {
+                const already = crossings.some(c => Math.abs(this.X[c] - this.X[i]) < 50);
+                if (!already) crossings.push(i);
+            }
+        }
+
+        crossings.forEach(idx => {
+            const u = idx / this.N;
+            this.samplePoint(u, pos);
+            this.sampleTangent(u, tan);
+            const yaw = Math.atan2(tan.x, tan.z);
+            euler.set(0, yaw, 0);
+            quat.setFromEuler(euler);
+
+            const addLocal = (list, geo, lx, ly, lz) => {
+                geo.translate(lx, ly, lz);
+                m4.compose(pos, quat, scale);
+                geo.applyMatrix4(m4);
+                list.push(geo);
+            };
+
+            // Deck & side plate girders (44m span)
+            addLocal(girderGeoms, new THREE.BoxGeometry(4.4, 0.35, 44), 0, -0.25, 0);
+            addLocal(girderGeoms, new THREE.BoxGeometry(0.28, 1.45, 44), -2.15, 0.45, 0);
+            addLocal(girderGeoms, new THREE.BoxGeometry(0.28, 1.45, 44), 2.15, 0.45, 0);
+
+            // Concrete river piers
+            [-16, 0, 16].forEach(pz => {
+                [-1.7, 1.7].forEach(px => {
+                    addLocal(concreteGeoms, new THREE.CylinderGeometry(0.45, 0.62, 2.4, 8), px, -1.35, pz);
+                });
+                addLocal(concreteGeoms, new THREE.BoxGeometry(4.6, 0.38, 1.2), 0, -0.45, pz);
+            });
+        });
+
+        if (window.mergeStaticGeometries && concreteGeoms.length > 0) {
+            this.trackGroup.add(new THREE.Mesh(window.mergeStaticGeometries(concreteGeoms), concreteMat));
+            this.trackGroup.add(new THREE.Mesh(window.mergeStaticGeometries(girderGeoms), girderMat));
+        }
     }
 }
 
@@ -2438,10 +2844,16 @@ class TrainPhysics {
         this.trackLength = trackSystem.totalLength;
 
         // Kinematic states
-        this.speed = 0.0;                  // Current speed in m/s
-        this.targetSpeed = 0.0;            // Target speed in m/s
-        this.throttleFraction = 0.85;      // User throttle setting (0.2 to 1.0)
-        this.isRunning = false;            // Throttle active state
+        this.proCabMode = GAME_CONFIG.train.proCabDefault !== false;
+        this.speed = 0.0;                  // Speed magnitude in m/s
+        this.signedSpeed = 0.0;            // Signed velocity (+forward / -reverse) in m/s
+        this.targetSpeed = 0.0;            // Simple-mode target speed in m/s
+        this.throttleFraction = 0.85;      // Simple-mode throttle setting (0.0 to 1.0)
+        this.notch = 5;                    // Pro Cab throttle notch (0..8)
+        this.reverser = 1;                 // Pro Cab reverser: 1=FWD, 0=NEU, -1=REV
+        this.brakeFraction = 0.0;          // Pro Cab air brake (0.0=Released .. 1.0=Full)
+        this.isRunning = true;             // Active driving state
+        this.isRaining = false;            // Synced from WeatherManager
         this.progress = 0.02;              // Normalized track parameter u in [0, 1)
         this.wheelRotation = 0.0;          // Wheel rotation in radians
 
@@ -2477,12 +2889,59 @@ class TrainPhysics {
 
     setRunning(isRunning) {
         this.isRunning = isRunning;
-        this.targetSpeed = isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
+        if (this.proCabMode) {
+            if (!isRunning) {
+                this.notch = 0;
+                this.brakeFraction = 0.85;
+            } else {
+                this.brakeFraction = 0.0;
+                if (this.notch === 0) this.notch = 4;
+                if (this.reverser === 0) this.reverser = 1;
+            }
+        } else {
+            this.targetSpeed = isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
+        }
+    }
+
+    setProCabMode(enabled) {
+        this.proCabMode = !!enabled;
+        if (this.proCabMode) {
+            this.notch = this.isRunning ? Math.max(1, Math.round(this.throttleFraction * 8)) : 0;
+            this.brakeFraction = this.isRunning ? 0.0 : 0.6;
+        } else {
+            this.throttleFraction = this.notch / 8.0;
+            this.isRunning = this.notch > 0 && this.brakeFraction < 0.5;
+            this.targetSpeed = this.isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
+        }
+    }
+
+    setNotch(n) {
+        this.notch = Math.max(0, Math.min(8, Math.round(n)));
+        this.throttleFraction = this.notch / 8.0;
+        this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+    }
+
+    setReverser(dir) {
+        const clamped = dir > 0 ? 1 : (dir < 0 ? -1 : 0);
+        // Only allow shifting reverser when nearly stationary
+        if (this.speed > 0.4 && clamped !== this.reverser) return false;
+        this.reverser = clamped;
+        this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+        return true;
+    }
+
+    setBrake(fraction) {
+        this.brakeFraction = Math.max(0.0, Math.min(1.0, fraction));
+        if (this.proCabMode) {
+            this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+        }
     }
 
     setThrottleFraction(fraction) {
-        this.throttleFraction = Math.max(0.2, Math.min(1.0, fraction));
-        if (this.isRunning) {
+        this.throttleFraction = Math.max(0.0, Math.min(1.0, fraction));
+        if (this.proCabMode) {
+            this.setNotch(Math.round(this.throttleFraction * 8));
+        } else if (this.isRunning) {
             this.targetSpeed = GAME_CONFIG.train.maxSpeed * this.throttleFraction;
         }
     }
@@ -2500,29 +2959,73 @@ class TrainPhysics {
     update(dt) {
         const delta = Math.min(dt, 0.1);
 
-        // Smooth acceleration / braking dynamics
-        if (this.speed < this.targetSpeed) {
-            this.speed += GAME_CONFIG.train.acceleration * delta;
-            if (this.speed > this.targetSpeed) this.speed = this.targetSpeed;
-        } else if (this.speed > this.targetSpeed) {
-            const decelRate = this.targetSpeed === 0.0
-                ? GAME_CONFIG.train.deceleration
-                : GAME_CONFIG.train.friction * 2.5;
-            this.speed -= decelRate * delta;
-            if (this.speed < this.targetSpeed) this.speed = this.targetSpeed;
+        if (this.proCabMode) {
+            const speedRatio = this.getSpeedRatio();
+            const maxSpd = GAME_CONFIG.train.maxSpeed * (this.reverser === -1 ? 0.45 : 1.0);
+            const targetSpd = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85)
+                ? this.reverser * maxSpd * (this.notch / 8.0)
+                : 0.0;
+
+            // Tractive effort
+            if (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85) {
+                const effort = (this.notch / 8.0) * GAME_CONFIG.train.acceleration * (1.2 - 0.35 * speedRatio);
+                if (this.reverser > 0 && this.signedSpeed < targetSpd) {
+                    this.signedSpeed = Math.min(targetSpd, this.signedSpeed + effort * delta);
+                } else if (this.reverser < 0 && this.signedSpeed > targetSpd) {
+                    this.signedSpeed = Math.max(targetSpd, this.signedSpeed - effort * delta);
+                }
+            }
+
+            // Grade resistance (climbing slows slightly, descending accelerates slightly)
+            if (this.speed > 0.05 || (this.notch === 0 && this.brakeFraction < 0.1)) {
+                this.signedSpeed -= this.currentTangent.y * 3.5 * delta;
+            }
+
+            // Rolling & aerodynamic drag + Air Brake
+            const drag = GAME_CONFIG.train.friction + 0.0016 * this.speed * this.speed;
+            const brakeDecel = this.brakeFraction * GAME_CONFIG.train.deceleration;
+            const totalOppose = (this.notch === 0 || this.reverser === 0 || this.brakeFraction > 0.02 || Math.abs(this.signedSpeed) > Math.abs(targetSpd))
+                ? (drag + brakeDecel)
+                : 0.0;
+
+            if (totalOppose > 0 && Math.abs(this.signedSpeed) > 0.0) {
+                const sign = this.signedSpeed >= 0 ? 1 : -1;
+                const nextMag = Math.max(0.0, Math.abs(this.signedSpeed) - totalOppose * delta);
+                this.signedSpeed = sign * nextMag;
+            }
+
+            if (Math.abs(this.signedSpeed) < 0.02 && (this.notch === 0 || this.reverser === 0 || this.brakeFraction > 0.1)) {
+                this.signedSpeed = 0.0;
+            }
+            this.speed = Math.abs(this.signedSpeed);
+            this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+        } else {
+            // Simple Mode acceleration / braking dynamics
+            if (this.speed < this.targetSpeed) {
+                this.speed += GAME_CONFIG.train.acceleration * delta;
+                if (this.speed > this.targetSpeed) this.speed = this.targetSpeed;
+            } else if (this.speed > this.targetSpeed) {
+                const decelRate = !this.isRunning
+                    ? GAME_CONFIG.train.deceleration
+                    : (this.targetSpeed === 0.0 ? GAME_CONFIG.train.friction : GAME_CONFIG.train.friction * 2.5);
+                this.speed -= decelRate * delta;
+                if (this.speed < this.targetSpeed) this.speed = this.targetSpeed;
+            }
+            this.signedSpeed = this.speed;
         }
 
         // Skip spline updates completely if stationary (saves CPU!)
         if (this.speed <= 0.0001) {
             this.speed = 0.0;
+            this.signedSpeed = 0.0;
             return false; // Indicates no movement occurred
         }
 
-        const distanceDelta = this.speed * delta;
+        const distanceDelta = this.signedSpeed * delta;
         this.wheelRotation += distanceDelta / GAME_CONFIG.train.wheelRadius;
 
         const deltaU = distanceDelta / this.trackLength;
-        this.progress = (this.progress + deltaU) % 1.0;
+        this.progress = (((this.progress + deltaU) % 1.0) + 1.0) % 1.0;
 
         this._syncAllCarPositions();
         return true;
@@ -2598,6 +3101,17 @@ class TrainPhysics {
     getSpeedRatio() {
         return Math.min(1.0, this.speed / GAME_CONFIG.train.maxSpeed);
     }
+
+    getBrakePressureBar() {
+        if (!this.proCabMode) return this.isRunning ? 5.0 : 0.0;
+        return Math.max(0.0, 5.0 * (1.0 - this.brakeFraction));
+    }
+
+    getTractiveEffortRatio() {
+        if (!this.proCabMode) return this.getSpeedRatio();
+        if (this.reverser === 0 || this.brakeFraction >= 0.85) return 0.0;
+        return this.notch / 8.0;
+    }
 }
 
 </script>
@@ -2616,16 +3130,18 @@ class TrainLocomotive {
         this.scene.add(this.root);
 
         this.bodyGroup = new THREE.Group();
+        this.bodyGroup.rotation.order = 'YXZ';
         this.root.add(this.bodyGroup);
 
-        this.frontBogie = null;
-        this.rearBogie = null;
-        this.wheelMeshes = [];
+        this.bogieCount = (1 + (GAME_CONFIG.train.carriageCount || 5)) * 2;
+        this.bogieInst = null;
+        this.wheelInst = null;
+        this._bogieDummy = new THREE.Object3D();
+        this._wheelDummy = new THREE.Object3D();
         this.roofFans = [];
 
-        // Master Lighting & Emissive Materials
+        // Master Lighting & Emissive Materials (Zero SpotLight shader overhead!)
         this.lightsOn = false;
-        this.headlight = null;
         this.headlightBeams = [];
         this.groundGlow = null;
         this.markerLamps = [];
@@ -2647,6 +3163,10 @@ class TrainLocomotive {
         this.amperageNeedle = null;
         this.throttleHandle = null;
         this.brakeHandle = null;
+        this.reverserHandle = null;
+        this.dashMat = null;
+        this.windRainMesh = null;
+        this.windRainTex = null;
         this.warningLampMat = null;
         this.wiperArm = null;
 
@@ -3053,9 +3573,14 @@ class TrainLocomotive {
         deskBase.position.set(0, -0.25, 0);
         deskGroup.add(deskBase);
 
-        // Sloped Instrument Panel
-        const panelMat = new THREE.MeshLambertMaterial({ map: this.dashTex });
-        const dashPanel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.42, 0.08), panelMat);
+        // Sloped Instrument Panel (Backlit when lights ON)
+        this.dashMat = new THREE.MeshLambertMaterial({
+            map: this.dashTex,
+            emissive: 0xffe299,
+            emissiveMap: this.dashTex,
+            emissiveIntensity: 0.15
+        });
+        const dashPanel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.42, 0.08), this.dashMat);
         dashPanel.rotation.x = -Math.PI * 0.22;
         dashPanel.position.set(0, 0.22, 0.12);
         deskGroup.add(dashPanel);
@@ -3093,6 +3618,12 @@ class TrainLocomotive {
         this.brakeHandle.position.set(-0.24, 0.18, 0.18);
         deskGroup.add(this.brakeHandle);
 
+        const revGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6);
+        revGeo.translate(0, 0.08, 0);
+        this.reverserHandle = new THREE.Mesh(revGeo, handrailMat);
+        this.reverserHandle.position.set(-0.56, 0.18, 0.18);
+        deskGroup.add(this.reverserHandle);
+
         // Warning Indicator Lamp (toggles with LIGHTS)
         this.warningLampMat = new THREE.MeshBasicMaterial({ color: 0x331100 });
         const warnLamp = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), this.warningLampMat);
@@ -3108,6 +3639,29 @@ class TrainLocomotive {
         );
         windGlass.position.set(0, 3.15, cabL * 0.5 - 0.02);
         this.cabInterior.add(windGlass);
+
+        // Windshield Rain Streaks Overlay (scrolls in Deck POV when raining)
+        const rCanvas = document.createElement('canvas');
+        rCanvas.width = 128; rCanvas.height = 128;
+        const rg = rCanvas.getContext('2d');
+        rg.clearRect(0, 0, 128, 128);
+        rg.fillStyle = 'rgba(210, 235, 255, 0.45)';
+        for (let i = 0; i < 42; i++) {
+            const rx = (i * 31) % 124;
+            const ry = (i * 53) % 116;
+            rg.fillRect(rx, ry, 2, 10 + (i % 8));
+        }
+        this.windRainTex = new THREE.CanvasTexture(rCanvas);
+        this.windRainTex.wrapS = THREE.RepeatWrapping;
+        this.windRainTex.wrapT = THREE.RepeatWrapping;
+        this.windRainTex.repeat.set(2, 1.5);
+        this.windRainMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.36, 1.32),
+            new THREE.MeshBasicMaterial({ map: this.windRainTex, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })
+        );
+        this.windRainMesh.position.set(0, 3.15, cabL * 0.5 - 0.01);
+        this.windRainMesh.visible = false;
+        this.cabInterior.add(this.windRainMesh);
 
         // Windshield Wiper Arm (animated in rain)
         const wiperGeo = new THREE.BoxGeometry(0.018, 0.65, 0.02);
@@ -3165,36 +3719,35 @@ class TrainLocomotive {
             this.headlightBeams.push(cone);
         });
 
-        // Forward Dynamic SpotLight (Center beam with wide angle = 0.62)
-        this.headlight = new THREE.SpotLight(0xfff4d2, 0.0, 110, 0.62, 0.45, 1.1);
-        this.headlight.position.set(0, 2.35, frontZ + 0.25);
-        const targetObj = new THREE.Object3D();
-        targetObj.position.set(0, 0.4, frontZ + 55);
-        this.bodyGroup.add(targetObj);
-        this.headlight.target = targetObj;
-        this.bodyGroup.add(this.headlight);
+        // Forward Ground Glow Projection Decal (soft radial beam on rails ahead, zero SpotLight cost!)
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 128; glowCanvas.height = 256;
+        const gg = glowCanvas.getContext('2d');
+        const grad = gg.createRadialGradient(64, 220, 8, 64, 128, 128);
+        grad.addColorStop(0, 'rgba(255, 244, 190, 0.55)');
+        grad.addColorStop(0.5, 'rgba(255, 230, 140, 0.22)');
+        grad.addColorStop(1, 'rgba(255, 220, 120, 0.0)');
+        gg.fillStyle = grad;
+        gg.fillRect(0, 0, 128, 256);
 
-        // Forward Ground Glow Decal (additive quad on rails ahead at night)
-        const glowGeo = new THREE.PlaneGeometry(3.8, 22);
+        const glowGeo = new THREE.PlaneGeometry(6.8, 36);
         glowGeo.rotateX(-Math.PI * 0.5);
         this.groundGlow = new THREE.Mesh(
             glowGeo,
             new THREE.MeshBasicMaterial({
-                color: 0xffe899,
+                map: new THREE.CanvasTexture(glowCanvas),
                 transparent: true,
-                opacity: 0.12,
+                opacity: 0.75,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending
             })
         );
-        this.groundGlow.position.set(0, 0.12, frontZ + 14);
+        this.groundGlow.position.set(0, 0.14, frontZ + 19);
         this.groundGlow.visible = false;
         this.bodyGroup.add(this.groundGlow);
 
-        // 6. Articulated Locomotive Bogies
-        this.frontBogie = this.createBogie();
-        this.rearBogie = this.createBogie();
-        this.root.add(this.frontBogie, this.rearBogie);
+        // 6. Instanced Articulated Bogies & Wheels (2 draw calls for entire train!)
+        this._initInstancedBogiesAndWheels();
     }
 
     buildCarriages() {
@@ -3241,6 +3794,7 @@ class TrainLocomotive {
 
         for (let i = 0; i < coachCount; i++) {
             const carGroup = new THREE.Group();
+            carGroup.rotation.order = 'YXZ';
             this.root.add(carGroup);
 
             // Soft ground shadow
@@ -3280,50 +3834,41 @@ class TrainLocomotive {
                 });
             }
 
-            // Bogies
-            const frontBogie = this.createBogie();
-            const rearBogie = this.createBogie();
-            this.root.add(frontBogie, rearBogie);
-
             this.carriages.push({
-                group: carGroup,
-                frontBogie: frontBogie,
-                rearBogie: rearBogie
+                group: carGroup
             });
         }
     }
 
-    createBogie() {
-        const bogieGroup = new THREE.Group();
+    _initInstancedBogiesAndWheels() {
         const frameMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainBogies });
         const wheelMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainWheels });
-
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(2.28, 0.26, 2.4), frameMat);
-        frame.position.y = 0.64;
-        bogieGroup.add(frame);
-
         const wheelR = GAME_CONFIG.train.wheelRadius || 0.52;
         const halfGauge = 0.82;
+
+        // Merge bogie frame + 2 axles into 1 geometry
+        const frameGeo = new THREE.BoxGeometry(2.28, 0.26, 2.4);
+        frameGeo.translate(0, 0.64, 0);
+        const axle1 = new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6);
+        axle1.rotateZ(Math.PI * 0.5);
+        axle1.translate(0, wheelR, -0.82);
+        const axle2 = new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6);
+        axle2.rotateZ(Math.PI * 0.5);
+        axle2.translate(0, wheelR, 0.82);
+
+        const mergedBogieGeo = window.mergeStaticGeometries
+            ? window.mergeStaticGeometries([frameGeo, axle1, axle2])
+            : frameGeo;
+
+        this.bogieInst = new THREE.InstancedMesh(mergedBogieGeo, frameMat, this.bogieCount);
+        this.bogieInst.frustumCulled = false;
+
         const wheelGeo = new THREE.CylinderGeometry(wheelR, wheelR, 0.12, 10);
         wheelGeo.rotateZ(Math.PI * 0.5);
+        this.wheelInst = new THREE.InstancedMesh(wheelGeo, wheelMat, this.bogieCount * 4);
+        this.wheelInst.frustumCulled = false;
 
-        [-0.82, 0.82].forEach(z => {
-            const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6), frameMat);
-            axle.position.set(0, wheelR, z);
-            axle.rotateZ(Math.PI * 0.5);
-            bogieGroup.add(axle);
-
-            [-halfGauge, halfGauge].forEach(x => {
-                const wheelPivot = new THREE.Group();
-                wheelPivot.position.set(x, wheelR, z);
-                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                wheelPivot.add(wheel);
-                bogieGroup.add(wheelPivot);
-                this.wheelMeshes.push(wheelPivot);
-            });
-        });
-
-        return bogieGroup;
+        this.root.add(this.bogieInst, this.wheelInst);
     }
 
     _initExhaustSmoke() {
@@ -3355,9 +3900,6 @@ class TrainLocomotive {
 
     setLights(on) {
         this.lightsOn = on;
-        if (this.headlight) {
-            this.headlight.intensity = on ? 3.4 : 0.0;
-        }
         if (this.headlightLensMat) {
             this.headlightLensMat.color.setHex(on ? 0xfff8d6 : 0x555555);
         }
@@ -3376,6 +3918,9 @@ class TrainLocomotive {
         }
         if (this.warningLampMat) {
             this.warningLampMat.color.setHex(on ? 0xffaa00 : 0x331100);
+        }
+        if (this.dashMat) {
+            this.dashMat.emissiveIntensity = on ? 0.65 : 0.15;
         }
         const glow = on ? 1.35 : 0.06;
         for (let i = 0; i < this.emissiveMaterials.length; i++) {
@@ -3410,7 +3955,7 @@ class TrainLocomotive {
             this.roofFans[i].rotation.y += fanSpeed * dt;
         }
 
-        // 2. Cab Instrument Needles & Levers (Section 4.2)
+        // 2. Cab Instrument Needles & Levers (Section 4.2 + Pro Cab)
         if (this.isDeckViewActive) {
             const kmh = this.physics.getKmh ? this.physics.getKmh() : (this.physics.speed * 3.6);
             const kmhRatio = Math.min(1.0, kmh / 80.0);
@@ -3418,25 +3963,33 @@ class TrainLocomotive {
                 this.speedNeedle.rotation.z = 2.2 - kmhRatio * 4.4;
             }
             if (this.brakeNeedle) {
-                const brakePressure = this.physics.isRunning ? 5.0 : 0.0;
+                const brakePressure = this.physics.getBrakePressureBar ? this.physics.getBrakePressureBar() : (this.physics.isRunning ? 5.0 : 0.0);
                 this.brakeNeedle.rotation.z = 2.2 - (brakePressure / 10.0) * 4.4;
             }
             if (this.amperageNeedle) {
-                const ampRatio = this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0.0;
+                const ampRatio = this.physics.getTractiveEffortRatio ? this.physics.getTractiveEffortRatio() : 0.0;
                 this.amperageNeedle.rotation.z = 2.2 - ampRatio * 4.4;
             }
             if (this.throttleHandle) {
-                const tf = this.physics.throttleFraction || 0.85;
+                const tf = this.physics.proCabMode ? (this.physics.notch / 8.0) : (this.physics.throttleFraction || 0.85);
                 this.throttleHandle.rotation.x = -0.4 + tf * 0.8;
             }
             if (this.brakeHandle) {
-                this.brakeHandle.rotation.x = this.physics.isRunning ? 0.35 : -0.35;
+                const bf = this.physics.proCabMode ? this.physics.brakeFraction : (this.physics.isRunning ? 0.0 : 1.0);
+                this.brakeHandle.rotation.x = 0.35 - bf * 0.7;
+            }
+            if (this.reverserHandle) {
+                const rev = this.physics.reverser || 0;
+                this.reverserHandle.rotation.x = rev * 0.42;
+            }
+            if (this.windRainMesh && this.windRainTex) {
+                this.windRainMesh.visible = !!this.physics.isRaining;
+                if (this.physics.isRaining) {
+                    this.windRainTex.offset.y += dt * (1.2 + kmhRatio * 1.4);
+                }
             }
             if (this.wiperArm) {
-                // Sweep wiper arm when rain is active (cached element, zero per-frame DOM search overhead)
-                if (!this._rainToggleBtn) this._rainToggleBtn = document.getElementById('btn-rain-toggle');
-                const isRaining = this.physics.isRaining || (this._rainToggleBtn && this._rainToggleBtn.dataset.on === 'true');
-                if (isRaining) {
+                if (this.physics.isRaining) {
                     this.wiperArm.rotation.z = Math.sin(performance.now() * 0.005) * 0.75;
                 } else {
                     this.wiperArm.rotation.z = 0;
@@ -3455,21 +4008,58 @@ class TrainLocomotive {
         }
     }
 
+    _updateBogieInstance(bogieIdx, pos, tangent, wheelRot) {
+        const yaw = Math.atan2(tangent.x, tangent.z);
+        this._bogieDummy.position.copy(pos);
+        this._bogieDummy.rotation.set(0, yaw, 0);
+        this._bogieDummy.updateMatrix();
+        this.bogieInst.setMatrixAt(bogieIdx, this._bogieDummy.matrix);
+
+        const wheelR = GAME_CONFIG.train.wheelRadius || 0.52;
+        const halfGauge = 0.82;
+        const cosY = Math.cos(yaw);
+        const sinY = Math.sin(yaw);
+        let wIdx = bogieIdx * 4;
+
+        for (let zi = -1; zi <= 1; zi += 2) {
+            const lz = zi * 0.82;
+            for (let xi = -1; xi <= 1; xi += 2) {
+                const lx = xi * halfGauge;
+                this._wheelDummy.position.set(
+                    pos.x + lx * cosY + lz * sinY,
+                    pos.y + wheelR,
+                    pos.z - lx * sinY + lz * cosY
+                );
+                this._wheelDummy.rotation.set(wheelRot, yaw, 0, 'YXZ');
+                this._wheelDummy.updateMatrix();
+                this.wheelInst.setMatrixAt(wIdx++, this._wheelDummy.matrix);
+            }
+        }
+    }
+
     _syncMeshes() {
-        // 1. Locomotive Main Body
+        const rot = this.physics.wheelRotation;
+        const spRatio = this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0;
+        const swayT = performance.now() * 0.001;
+
+        // 1. Locomotive Main Body (with curve banking & subtle suspension sway)
         this.bodyGroup.position.copy(this.physics.currentPosition);
         const tan = this.physics.currentTangent;
         this.bodyGroup.rotation.y = Math.atan2(tan.x, tan.z);
         const hDist = Math.hypot(tan.x, tan.z) || 1.0;
         this.bodyGroup.rotation.x = -Math.atan2(tan.y, hDist);
+        const locoCurve = this.physics.frontBogieTan.x * this.physics.rearBogieTan.z - this.physics.frontBogieTan.z * this.physics.rearBogieTan.x;
+        const locoBank = Math.max(-0.055, Math.min(0.055, locoCurve * 0.55 * spRatio));
+        this.bodyGroup.rotation.z = locoBank + Math.sin(swayT * 2.5) * 0.008 * spRatio;
 
-        // 2. Locomotive Bogies
-        this.frontBogie.position.copy(this.physics.frontBogiePos);
-        this.frontBogie.rotation.y = Math.atan2(this.physics.frontBogieTan.x, this.physics.frontBogieTan.z);
-        this.rearBogie.position.copy(this.physics.rearBogiePos);
-        this.rearBogie.rotation.y = Math.atan2(this.physics.rearBogieTan.x, this.physics.rearBogieTan.z);
+        // 2. Locomotive Bogies & Wheels
+        let bIdx = 0;
+        if (this.bogieInst && this.wheelInst) {
+            this._updateBogieInstance(bIdx++, this.physics.frontBogiePos, this.physics.frontBogieTan, rot);
+            this._updateBogieInstance(bIdx++, this.physics.rearBogiePos, this.physics.rearBogieTan, rot);
+        }
 
-        // 3. Passenger Carriages
+        // 3. Passenger Carriages (with curve banking & staggered suspension sway)
         for (let i = 0; i < this.carriages.length; i++) {
             const car = this.carriages[i];
             const data = this.physics.carriagesData[i];
@@ -3479,17 +4069,19 @@ class TrainLocomotive {
             car.group.rotation.y = Math.atan2(data.tangent.x, data.tangent.z);
             const hd = Math.hypot(data.tangent.x, data.tangent.z) || 1.0;
             car.group.rotation.x = -Math.atan2(data.tangent.y, hd);
+            const carCurve = data.frontTangent.x * data.rearTangent.z - data.frontTangent.z * data.rearTangent.x;
+            const carBank = Math.max(-0.055, Math.min(0.055, carCurve * 0.55 * spRatio));
+            car.group.rotation.z = carBank + Math.sin(swayT * 2.5 + (i + 1) * 0.85) * 0.011 * spRatio;
 
-            car.frontBogie.position.copy(data.frontBogiePos);
-            car.frontBogie.rotation.y = Math.atan2(data.frontTangent.x, data.frontTangent.z);
-            car.rearBogie.position.copy(data.rearBogiePos);
-            car.rearBogie.rotation.y = Math.atan2(data.rearTangent.x, data.rearTangent.z);
+            if (this.bogieInst && this.wheelInst) {
+                this._updateBogieInstance(bIdx++, data.frontBogiePos, data.frontTangent, rot);
+                this._updateBogieInstance(bIdx++, data.rearBogiePos, data.rearTangent, rot);
+            }
         }
 
-        // 4. Wheels rotation
-        const rot = this.physics.wheelRotation;
-        for (let i = 0; i < this.wheelMeshes.length; i++) {
-            this.wheelMeshes[i].rotation.x = rot;
+        if (this.bogieInst && this.wheelInst) {
+            this.bogieInst.instanceMatrix.needsUpdate = true;
+            this.wheelInst.instanceMatrix.needsUpdate = true;
         }
     }
 
@@ -3630,8 +4222,11 @@ class EnvironmentManager {
             insulator: new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.insulators }),
             wire: new THREE.LineBasicMaterial({ color: 0x22262a }),
             trunk: new THREE.MeshLambertMaterial({ color: 0x4a3828 }),
-            pineFoliage: new THREE.MeshLambertMaterial({ color: 0x265429 }),
-            oakFoliage: new THREE.MeshLambertMaterial({ color: 0x3b7334 }),
+            palmTrunk: new THREE.MeshLambertMaterial({ color: 0x6b5846 }),
+            palmFoliage: new THREE.MeshLambertMaterial({ color: 0x2d7a36, side: THREE.DoubleSide }),
+            banyanFoliage: new THREE.MeshLambertMaterial({ color: 0x265c29 }),
+            bananaFoliage: new THREE.MeshLambertMaterial({ color: 0x5ba336, side: THREE.DoubleSide }),
+            mustardField: new THREE.MeshLambertMaterial({ color: 0xeab308 }),
             bushFoliage: new THREE.MeshLambertMaterial({ color: 0x4e873c }),
             rock: new THREE.MeshLambertMaterial({ color: 0x6c7075 }),
             cottageWall: cottageGlowMat,
@@ -3715,6 +4310,38 @@ class EnvironmentManager {
         }
         lilyInst.instanceMatrix.needsUpdate = true;
         lakeGroup.add(lilyInst);
+
+        // Scenic River / Khal (নদী / খাল) running East-West at z = -935 under the twin river bridges
+        const riverMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2400, 38),
+            this.materials.water
+        );
+        riverMesh.rotation.x = -Math.PI / 2;
+        riverMesh.position.set(0, -0.10, -935);
+        lakeGroup.add(riverMesh);
+
+        const riverBankMat = new THREE.MeshLambertMaterial({ color: 0x9e8c6c });
+        [-22, 22].forEach(rz => {
+            const bank = new THREE.Mesh(new THREE.PlaneGeometry(2400, 9), riverBankMat);
+            bank.rotation.x = -Math.PI / 2;
+            bank.position.set(0, -0.17, -935 + rz);
+            lakeGroup.add(bank);
+        });
+
+        // Country Boats (নৌকা) gliding on the River Khal
+        [[-140, -938, 1.5], [0, -932, -1.55], [160, -936, 1.48]].forEach(([bx, bz, rot]) => {
+            const boat = new THREE.Group();
+            const hull = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.55, 5.0), hullMat);
+            hull.position.y = 0.2;
+            const canopy = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 2.2, 6, 1, false, 0, Math.PI), new THREE.MeshLambertMaterial({ color: 0x8c765c }));
+            canopy.rotation.z = Math.PI * 0.5;
+            canopy.rotation.y = Math.PI * 0.5;
+            canopy.position.set(0, 0.55, 0);
+            boat.add(hull, canopy);
+            boat.position.set(bx, -0.06, bz);
+            boat.rotation.y = rot;
+            lakeGroup.add(boat);
+        });
 
         lakeGroup.traverse((c) => {
             c.matrixAutoUpdate = false;
@@ -4001,104 +4628,163 @@ class EnvironmentManager {
         this.scene.add(wireLine);
     }
 
-    // 100% Instanced Multi-Species Forest, Shrubs & Cliff Boulders (5 draw calls instead of 900+!)
+    // 100% Instanced Bangladeshi Flora: Coconut Palms, Banyan/Mango Trees, Banana Clumps, Mustard Fields & Boulders
     _buildInstancedForestAndRocks() {
-        const pineCount = 320;
-        const oakCount = 220;
-        const bushCount = 260;
-        const rockCount = 65;
+        const palmCount = 300;
+        const banyanCount = 220;
+        const bananaCount = 160;
+        const bushCount = 220;
+        const mustardCount = 36;
+        const rockCount = 55;
 
-        const trunkGeo = new THREE.CylinderGeometry(0.22, 0.42, 3.4, 6);
-        const pineConeGeo = new THREE.ConeGeometry(2.3, 6.2, 7);
-        const oakCrownGeo = new THREE.DodecahedronGeometry(2.6, 1);
-        const bushGeo = new THREE.DodecahedronGeometry(1.2, 0);
-        const rockGeo = new THREE.DodecahedronGeometry(3.2, 0);
+        // Tapered Coconut/Palm trunk + 6-frond radial crown
+        const palmTrunkGeo = new THREE.CylinderGeometry(0.14, 0.28, 7.6, 6);
+        const frondGeoms = [];
+        for (let f = 0; f < 6; f++) {
+            const ang = (f / 6) * Math.PI * 2;
+            const frond = new THREE.BoxGeometry(0.65, 0.08, 3.2);
+            frond.rotateX(0.28);
+            frond.translate(0, -0.35, 1.55);
+            frond.rotateY(ang);
+            frondGeoms.push(frond);
+        }
+        const palmCrownGeo = window.mergeStaticGeometries ? window.mergeStaticGeometries(frondGeoms) : frondGeoms[0];
 
-        const trunkInst = new THREE.InstancedMesh(trunkGeo, this.materials.trunk, pineCount + oakCount);
-        const pineInst = new THREE.InstancedMesh(pineConeGeo, this.materials.pineFoliage, pineCount);
-        const oakInst = new THREE.InstancedMesh(oakCrownGeo, this.materials.oakFoliage, oakCount);
+        // Banyan / Mango trunk & wide canopy
+        const banyanTrunkGeo = new THREE.CylinderGeometry(0.28, 0.50, 3.6, 6);
+        const banyanCrownGeo = new THREE.DodecahedronGeometry(3.1, 1);
+
+        // Banana clump (3 broad angled leaves)
+        const bLeaves = [];
+        for (let l = 0; l < 4; l++) {
+            const leaf = new THREE.BoxGeometry(0.75, 0.06, 2.4);
+            leaf.rotateX(0.45);
+            leaf.translate(0, 1.4, 0.9);
+            leaf.rotateY((l / 4) * Math.PI * 2 + 0.3);
+            bLeaves.push(leaf);
+        }
+        const bananaGeo = window.mergeStaticGeometries ? window.mergeStaticGeometries(bLeaves) : bLeaves[0];
+
+        const bushGeo = new THREE.DodecahedronGeometry(1.15, 0);
+        const mustardGeo = new THREE.BoxGeometry(16, 0.25, 14);
+        const rockGeo = new THREE.DodecahedronGeometry(3.0, 0);
+
+        const palmTrunkInst = new THREE.InstancedMesh(palmTrunkGeo, this.materials.palmTrunk, palmCount);
+        const palmCrownInst = new THREE.InstancedMesh(palmCrownGeo, this.materials.palmFoliage, palmCount);
+        const banyanTrunkInst = new THREE.InstancedMesh(banyanTrunkGeo, this.materials.trunk, banyanCount);
+        const banyanCrownInst = new THREE.InstancedMesh(banyanCrownGeo, this.materials.banyanFoliage, banyanCount);
+        const bananaInst = new THREE.InstancedMesh(bananaGeo, this.materials.bananaFoliage, bananaCount);
         const bushInst = new THREE.InstancedMesh(bushGeo, this.materials.bushFoliage, bushCount);
+        const mustardInst = new THREE.InstancedMesh(mustardGeo, this.materials.mustardField, mustardCount);
         const rockInst = new THREE.InstancedMesh(rockGeo, this.materials.rock, rockCount);
 
         const dummy = new THREE.Object3D();
         const pt = new THREE.Vector3();
         const tan = new THREE.Vector3();
 
-        let tIdx = 0;
-
-        // Deterministic pseudo-random helper
         const rand = (seed) => {
             const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
             return x - Math.floor(x);
         };
 
-        // 1. Pines
-        for (let i = 0; i < pineCount; i++) {
+        const isClear = (x, z, minTrackDist) => {
+            if (Math.hypot(x, z - 680) < 170) return false; // Lake
+            if (Math.abs(z + 935) < 32) return false;       // River Khal
+            return this.trackSystem.getMinDistanceToTrack(x, z) >= minTrackDist;
+        };
+
+        // 1. Coconut & Palm Trees (নারকেল / তাল গাছ)
+        for (let i = 0; i < palmCount; i++) {
             const u = rand(i + 1);
             this.trackSystem.samplePoint(u, pt);
             this.trackSystem.sampleTangent(u, tan);
             const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
             const side = rand(i + 500) < 0.5 ? -1 : 1;
-            const dist = 15.0 + rand(i + 1000) * 95.0;
+            const dist = 14.0 + rand(i + 1000) * 95.0;
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict track clearance (11.5m) and lake clearance
-            if (Math.hypot(x, z - 680) < 168 || this.trackSystem.getMinDistanceToTrack(x, z) < 11.5) {
+            if (!isClear(x, z, 11.5)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
-                trunkInst.setMatrixAt(tIdx++, dummy.matrix);
-                pineInst.setMatrixAt(i, dummy.matrix);
+                palmTrunkInst.setMatrixAt(i, dummy.matrix);
+                palmCrownInst.setMatrixAt(i, dummy.matrix);
                 continue;
             }
 
-            const sc = 0.75 + rand(i + 1500) * 0.65;
-            dummy.position.set(x, 1.6 * sc, z);
-            dummy.rotation.set(0, rand(i) * Math.PI, 0);
+            const sc = 0.8 + rand(i + 1500) * 0.55;
+            const lean = (rand(i + 200) - 0.5) * 0.14;
+            dummy.position.set(x, 3.6 * sc, z);
+            dummy.rotation.set(lean, rand(i) * Math.PI * 2, lean * 0.5);
             dummy.scale.set(sc, sc, sc);
             dummy.updateMatrix();
-            trunkInst.setMatrixAt(tIdx++, dummy.matrix);
+            palmTrunkInst.setMatrixAt(i, dummy.matrix);
 
-            dummy.position.set(x, 5.0 * sc, z);
+            dummy.position.set(x + Math.sin(lean) * 3.5 * sc, 7.3 * sc, z);
             dummy.updateMatrix();
-            pineInst.setMatrixAt(i, dummy.matrix);
+            palmCrownInst.setMatrixAt(i, dummy.matrix);
         }
 
-        // 2. Deciduous Oaks
-        for (let i = 0; i < oakCount; i++) {
+        // 2. Banyan / Mango Trees (বট ও আম গাছ)
+        for (let i = 0; i < banyanCount; i++) {
             const s = i + 3000;
             const u = rand(s);
             this.trackSystem.samplePoint(u, pt);
             this.trackSystem.sampleTangent(u, tan);
             const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
             const side = rand(s + 200) < 0.5 ? -1 : 1;
-            const dist = 14.0 + rand(s + 400) * 85.0;
+            const dist = 15.0 + rand(s + 400) * 85.0;
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict track clearance (11.5m) and lake clearance
-            if (Math.hypot(x, z - 680) < 168 || this.trackSystem.getMinDistanceToTrack(x, z) < 11.5) {
+            if (!isClear(x, z, 12.0)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
-                trunkInst.setMatrixAt(tIdx++, dummy.matrix);
-                oakInst.setMatrixAt(i, dummy.matrix);
+                banyanTrunkInst.setMatrixAt(i, dummy.matrix);
+                banyanCrownInst.setMatrixAt(i, dummy.matrix);
                 continue;
             }
 
-            const sc = 0.8 + rand(s + 600) * 0.6;
-            dummy.position.set(x, 1.6 * sc, z);
+            const sc = 0.85 + rand(s + 600) * 0.65;
+            dummy.position.set(x, 1.7 * sc, z);
             dummy.rotation.set(0, rand(s) * Math.PI, 0);
             dummy.scale.set(sc, sc, sc);
             dummy.updateMatrix();
-            trunkInst.setMatrixAt(tIdx++, dummy.matrix);
+            banyanTrunkInst.setMatrixAt(i, dummy.matrix);
 
-            dummy.position.set(x, 4.4 * sc, z);
-            dummy.scale.set(sc * 1.15, sc * 0.9, sc * 1.15);
+            dummy.position.set(x, 4.6 * sc, z);
+            dummy.scale.set(sc * 1.35, sc * 0.85, sc * 1.35);
             dummy.updateMatrix();
-            oakInst.setMatrixAt(i, dummy.matrix);
+            banyanCrownInst.setMatrixAt(i, dummy.matrix);
         }
 
-        // 3. Trackside Bushes
+        // 3. Banana Clumps (কলাগাছ)
+        for (let i = 0; i < bananaCount; i++) {
+            const s = i + 4500;
+            const u = rand(s);
+            this.trackSystem.samplePoint(u, pt);
+            this.trackSystem.sampleTangent(u, tan);
+            const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
+            const side = rand(s + 150) < 0.5 ? -1 : 1;
+            const dist = 10.5 + rand(s + 250) * 45.0;
+            const x = pt.x + (nx / nLen) * side * dist;
+            const z = pt.z + (nz / nLen) * side * dist;
+
+            if (!isClear(x, z, 9.5)) {
+                dummy.scale.set(0, 0, 0);
+                dummy.updateMatrix();
+                bananaInst.setMatrixAt(i, dummy.matrix);
+                continue;
+            }
+            const sc = 0.75 + rand(s + 350) * 0.5;
+            dummy.position.set(x, 0, z);
+            dummy.rotation.set(0, rand(s) * Math.PI * 2, 0);
+            dummy.scale.set(sc, sc, sc);
+            dummy.updateMatrix();
+            bananaInst.setMatrixAt(i, dummy.matrix);
+        }
+
+        // 4. Trackside Bushes
         for (let i = 0; i < bushCount; i++) {
             const s = i + 6000;
             const u = rand(s);
@@ -4110,8 +4796,7 @@ class EnvironmentManager {
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict clearance: bushes never on rails
-            if (this.trackSystem.getMinDistanceToTrack(x, z) < 6.5) {
+            if (!isClear(x, z, 6.8)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
                 bushInst.setMatrixAt(i, dummy.matrix);
@@ -4126,7 +4811,32 @@ class EnvironmentManager {
             bushInst.setMatrixAt(i, dummy.matrix);
         }
 
-        // 4. Cliff Boulders
+        // 5. Golden Mustard Fields (হলুদ সরিষা ক্ষেত)
+        for (let i = 0; i < mustardCount; i++) {
+            const s = i + 7500;
+            const u = rand(s);
+            this.trackSystem.samplePoint(u, pt);
+            this.trackSystem.sampleTangent(u, tan);
+            const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
+            const side = (i % 2 === 0) ? 1 : -1;
+            const dist = 26.0 + rand(s + 100) * 55.0;
+            const x = pt.x + (nx / nLen) * side * dist;
+            const z = pt.z + (nz / nLen) * side * dist;
+
+            if (!isClear(x, z, 18.0)) {
+                dummy.scale.set(0, 0, 0);
+                dummy.updateMatrix();
+                mustardInst.setMatrixAt(i, dummy.matrix);
+                continue;
+            }
+            dummy.position.set(x, -0.10, z);
+            dummy.rotation.set(0, Math.atan2(tan.x, tan.z), 0);
+            dummy.scale.set(0.8 + rand(s) * 0.6, 1, 0.8 + rand(s + 20) * 0.6);
+            dummy.updateMatrix();
+            mustardInst.setMatrixAt(i, dummy.matrix);
+        }
+
+        // 6. Cliff Boulders
         for (let i = 0; i < rockCount; i++) {
             const s = i + 9000;
             const u = rand(s);
@@ -4134,12 +4844,11 @@ class EnvironmentManager {
             this.trackSystem.sampleTangent(u, tan);
             const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
             const side = rand(s + 50) < 0.5 ? -1 : 1;
-            const dist = 18.0 + rand(s + 150) * 55.0;
+            const dist = 20.0 + rand(s + 150) * 55.0;
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict clearance: boulders never on track
-            if (this.trackSystem.getMinDistanceToTrack(x, z) < 9.5) {
+            if (!isClear(x, z, 10.0)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
                 rockInst.setMatrixAt(i, dummy.matrix);
@@ -4156,17 +4865,12 @@ class EnvironmentManager {
             rockInst.setMatrixAt(i, dummy.matrix);
         }
 
-        trunkInst.instanceMatrix.needsUpdate = true;
-        pineInst.instanceMatrix.needsUpdate = true;
-        oakInst.instanceMatrix.needsUpdate = true;
-        bushInst.instanceMatrix.needsUpdate = true;
-        rockInst.instanceMatrix.needsUpdate = true;
-
-        [trunkInst, pineInst, oakInst, bushInst, rockInst].forEach(inst => {
+        [palmTrunkInst, palmCrownInst, banyanTrunkInst, banyanCrownInst, bananaInst, bushInst, mustardInst, rockInst].forEach(inst => {
+            inst.instanceMatrix.needsUpdate = true;
             inst.matrixAutoUpdate = false;
             inst.updateMatrix();
         });
-        this.scene.add(trunkInst, pineInst, oakInst, bushInst, rockInst);
+        this.scene.add(palmTrunkInst, palmCrownInst, banyanTrunkInst, banyanCrownInst, bananaInst, bushInst, mustardInst, rockInst);
     }
 
     // 100% Instanced Bangladeshi Tin-Roof Huts with Night-Glowing Windows (Section 21.1)
@@ -4204,8 +4908,8 @@ class EnvironmentManager {
 
             const bx = pt.x + (nx / nLen) * side * dist;
             const bz = pt.z + (nz / nLen) * side * dist;
-            // Strictly keep clear of tracks (min 22m safe corridor), lake, bridge, and station
-            if (Math.hypot(bx, bz - 680) < 170 || this.trackSystem.getMinDistanceToTrack(bx, bz) < 22.0) {
+            // Strictly keep clear of tracks (min 22m safe corridor), lake, river, bridge, and station
+            if (Math.hypot(bx, bz - 680) < 170 || Math.abs(bz + 935) < 34 || this.trackSystem.getMinDistanceToTrack(bx, bz) < 22.0) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
                 bodyInst.setMatrixAt(i, dummy.matrix);
@@ -4400,8 +5104,23 @@ class VillageManager {
         const zebuWhiteTex = createZebuTex('#e6e8eb', '#9aa2ab');
         const zebuBrownTex = createZebuTex('#8c4828', '#5a2d18');
 
-        // Night-glow lantern material
+        // Night-glow lantern material & shared bulb glow sprite material
         const lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xffd978 });
+        const gCanvas = document.createElement('canvas');
+        gCanvas.width = 64; gCanvas.height = 64;
+        const gg = gCanvas.getContext('2d');
+        const grad = gg.createRadialGradient(32, 32, 2, 32, 32, 30);
+        grad.addColorStop(0, 'rgba(255, 210, 100, 0.85)');
+        grad.addColorStop(0.4, 'rgba(255, 170, 50, 0.35)');
+        grad.addColorStop(1, 'rgba(255, 140, 20, 0.0)');
+        gg.fillStyle = grad;
+        gg.fillRect(0, 0, 64, 64);
+        const bulbGlowSpriteMat = new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(gCanvas),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true
+        });
 
         this.materials = {
             tinRoof: new THREE.MeshLambertMaterial({ map: tinTex }),
@@ -4426,7 +5145,8 @@ class VillageManager {
             brassKettle: new THREE.MeshLambertMaterial({ color: 0xd4a017 }),
             clayPot: new THREE.MeshLambertMaterial({ color: 0x994828 }),
             sweetTray: new THREE.MeshLambertMaterial({ color: 0xffe299 }),
-            lanternGlow: lanternGlowMat
+            lanternGlow: lanternGlowMat,
+            bulbGlowSprite: bulbGlowSpriteMat
         };
         this.nightGlowMaterials.push(lanternGlowMat);
     }
@@ -4932,25 +5652,7 @@ class BengaliTeaStall {
         bulb.position.set(0, 1.95, 0.0);
         this.root.add(cord, bulb);
 
-        // Additive soft glow sprite (zero PointLight shader cost! U5 & B20)
-        const gCanvas = document.createElement('canvas');
-        gCanvas.width = 64; gCanvas.height = 64;
-        const gg = gCanvas.getContext('2d');
-        const grad = gg.createRadialGradient(32, 32, 2, 32, 32, 30);
-        grad.addColorStop(0, 'rgba(255, 210, 100, 0.85)');
-        grad.addColorStop(0.4, 'rgba(255, 170, 50, 0.35)');
-        grad.addColorStop(1, 'rgba(255, 140, 20, 0.0)');
-        gg.fillStyle = grad;
-        gg.fillRect(0, 0, 64, 64);
-        const glowTex = new THREE.CanvasTexture(gCanvas);
-
-        const glowMat = new THREE.SpriteMaterial({
-            map: glowTex,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            transparent: true
-        });
-        const glowSprite = new THREE.Sprite(glowMat);
+        const glowSprite = new THREE.Sprite(this.materials.bulbGlowSprite);
         glowSprite.scale.set(3.8, 3.8, 1.0);
         glowSprite.position.set(0, 1.95, 0);
         this.root.add(glowSprite);
@@ -5643,6 +6345,10 @@ class WeatherManager {
         this.dirLight = null;
         this.hemiLight = null;
         this.ambientLight = null;
+        this.skyDome = null;
+        this.skyUniforms = null;
+        this.cloudInst = null;
+        this.cloudData = [];
         this.moonMesh = null;
         this.starPoints = null;
         this.starMat = null;
@@ -5678,10 +6384,12 @@ class WeatherManager {
         this.targetSunPos = [140, 240, 160];
         this.targetWindowGlow = 0.08;
 
-        // Monsoonal Rain Particle System
+        // Monsoonal Rain Particle System (100% GPU Shader-Driven — Zero CPU loop / Zero buffer upload)
         this.rainParticles = null;
-        this.rainCount = 1800;
+        this.rainCount = 900;
         this.rainGeo = null;
+        this.rainMat = null;
+        this.rainTime = 0;
 
         this._initLightingAndSky();
         this._initRainParticles();
@@ -5703,6 +6411,81 @@ class WeatherManager {
 
         this.scene.background = new THREE.Color(p.skyHorizon);
         this.scene.fog = new THREE.FogExp2(p.fogColor, p.fogDensity);
+
+        // Gradient Sky Dome (1 draw call, uses skyTop -> skyHorizon + soft sun halo)
+        this.skyUniforms = {
+            uTopColor: { value: new THREE.Color(p.skyTop) },
+            uHorizonColor: { value: new THREE.Color(p.skyHorizon) },
+            uSunDir: { value: new THREE.Vector3(p.sunPos[0], p.sunPos[1], p.sunPos[2]).normalize() },
+            uSunColor: { value: new THREE.Color(p.sunColor) },
+            uSunGlow: { value: 0.45 }
+        };
+        const skyGeo = new THREE.SphereGeometry(2100, 20, 12);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: this.skyUniforms,
+            vertexShader: [
+                'varying vec3 vLocalPos;',
+                'void main() {',
+                '    vLocalPos = normalize(position);',
+                '    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+                '}'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform vec3 uTopColor;',
+                'uniform vec3 uHorizonColor;',
+                'uniform vec3 uSunDir;',
+                'uniform vec3 uSunColor;',
+                'uniform float uSunGlow;',
+                'varying vec3 vLocalPos;',
+                'void main() {',
+                '    float h = clamp(vLocalPos.y, 0.0, 1.0);',
+                '    vec3 col = mix(uHorizonColor, uTopColor, pow(h, 0.55));',
+                '    float sunDot = max(dot(vLocalPos, normalize(uSunDir)), 0.0);',
+                '    col += uSunColor * (pow(sunDot, 24.0) * 0.55 + pow(sunDot, 180.0) * 0.85) * uSunGlow;',
+                '    gl_FragColor = vec4(col, 1.0);',
+                '}'
+            ].join('\n'),
+            side: THREE.BackSide,
+            depthWrite: false,
+            fog: false
+        });
+        this.skyDome = new THREE.Mesh(skyGeo, skyMat);
+        this.scene.add(this.skyDome);
+
+        // Instanced Drifting Clouds (1 draw call, 26 clouds)
+        const cloudCount = 26;
+        const c1 = new THREE.DodecahedronGeometry(18, 0);
+        c1.scale(1.8, 0.55, 1.1);
+        const c2 = new THREE.DodecahedronGeometry(13, 0);
+        c2.scale(1.4, 0.5, 1.0);
+        c2.translate(16, -2, 3);
+        const c3 = new THREE.DodecahedronGeometry(12, 0);
+        c3.scale(1.3, 0.48, 0.9);
+        c3.translate(-15, -2.5, -2);
+        const cloudGeo = window.mergeStaticGeometries ? window.mergeStaticGeometries([c1, c2, c3]) : c1;
+        this.cloudMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.72,
+            fog: true
+        });
+        this.cloudInst = new THREE.InstancedMesh(cloudGeo, this.cloudMat, cloudCount);
+        this.cloudDummy = new THREE.Object3D();
+        for (let i = 0; i < cloudCount; i++) {
+            const cx = ((i * 277) % 2200) - 1100;
+            const cy = 155 + (i % 5) * 24;
+            const cz = ((i * 419) % 2400) - 1200;
+            const sc = 0.8 + (i % 4) * 0.35;
+            this.cloudData.push({ x: cx, y: cy, z: cz, sc: sc, speed: 3.5 + (i % 5) * 1.1, rot: (i * 0.7) % Math.PI });
+            this.cloudDummy.position.set(cx, cy, cz);
+            this.cloudDummy.rotation.set(0, this.cloudData[i].rot, 0);
+            this.cloudDummy.scale.setScalar(sc);
+            this.cloudDummy.updateMatrix();
+            this.cloudInst.setMatrixAt(i, this.cloudDummy.matrix);
+        }
+        this.cloudInst.instanceMatrix.needsUpdate = true;
+        this.cloudInst.frustumCulled = false;
+        this.scene.add(this.cloudInst);
 
         // Glowing Full Moon
         const moonGeo = new THREE.SphereGeometry(28, 16, 16);
@@ -5739,27 +6522,55 @@ class WeatherManager {
 
     _initRainParticles() {
         const positions = new Float32Array(this.rainCount * 3);
-        const velocities = new Float32Array(this.rainCount);
+        const speeds = new Float32Array(this.rainCount);
 
         for (let i = 0; i < this.rainCount; i++) {
-            positions[i * 3]     = (Math.random() - 0.5) * 190;
+            positions[i * 3]     = (Math.random() - 0.5) * 180;
             positions[i * 3 + 1] = Math.random() * 70;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 190;
-            velocities[i] = 44 + Math.random() * 20;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 180;
+            speeds[i] = 44 + Math.random() * 22;
         }
 
         this.rainGeo = new THREE.BufferGeometry();
         this.rainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        this.rainGeo.userData = { velocities: velocities };
+        this.rainGeo.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
 
-        const rainMat = new THREE.PointsMaterial({
-            color: 0xaed4f7,
-            size: 0.45,
+        this.rainMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0.0 },
+                uColor: { value: new THREE.Color(0xaed4f7) },
+                uOpacity: { value: 0.62 },
+                uSize: { value: 2.2 }
+            },
+            vertexShader: [
+                'attribute float aSpeed;',
+                'uniform float uTime;',
+                'uniform float uSize;',
+                'void main() {',
+                '    vec3 p = position;',
+                '    p.y = mod(p.y - uTime * aSpeed, 70.0);',
+                '    vec4 mvPos = modelViewMatrix * vec4(p, 1.0);',
+                '    gl_PointSize = uSize * (180.0 / max(1.0, -mvPos.z));',
+                '    gl_Position = projectionMatrix * mvPos;',
+                '}'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform vec3 uColor;',
+                'uniform float uOpacity;',
+                'void main() {',
+                '    vec2 c = gl_PointCoord - vec2(0.5);',
+                '    if (abs(c.x) > 0.18) discard;',
+                '    float alpha = uOpacity * (1.0 - abs(c.y) * 1.6);',
+                '    if (alpha <= 0.01) discard;',
+                '    gl_FragColor = vec4(uColor, alpha);',
+                '}'
+            ].join('\n'),
             transparent: true,
-            opacity: 0.65
+            depthWrite: false
         });
 
-        this.rainParticles = new THREE.Points(this.rainGeo, rainMat);
+        this.rainParticles = new THREE.Points(this.rainGeo, this.rainMat);
+        this.rainParticles.frustumCulled = false;
         this.rainParticles.visible = false;
         this.scene.add(this.rainParticles);
     }
@@ -5782,6 +6593,18 @@ class WeatherManager {
             this.scene.background.setHex(p.skyHorizon);
             this.scene.fog.color.setHex(p.fogColor);
             this.scene.fog.density = this.isRaining ? 0.00105 : p.fogDensity;
+
+            if (this.skyUniforms) {
+                this.skyUniforms.uTopColor.value.setHex(p.skyTop);
+                this.skyUniforms.uHorizonColor.value.setHex(p.skyHorizon);
+                this.skyUniforms.uSunDir.value.set(p.sunPos[0], p.sunPos[1], p.sunPos[2]).normalize();
+                this.skyUniforms.uSunColor.value.setHex(p.sunColor);
+                this.skyUniforms.uSunGlow.value = (key === 'night' || this.isRaining) ? 0.0 : (key === 'dawn' ? 0.85 : 0.45);
+            }
+            if (this.cloudMat) {
+                this.cloudMat.color.setHex(key === 'night' ? 0x1e2c42 : (key === 'dawn' ? 0xffd0a8 : 0xffffff));
+                this.cloudMat.opacity = this.isRaining ? 0.35 : (key === 'night' ? 0.35 : 0.72);
+            }
 
             this.dirLight.color.setHex(p.sunColor);
             this.dirLight.intensity = this.isRaining ? p.sunIntensity * 0.55 : p.sunIntensity;
@@ -5807,6 +6630,12 @@ class WeatherManager {
         // Start smooth 2.5s transition
         this.srcSky.copy(this.scene.background);
         this.targetSky.setHex(p.skyHorizon);
+        this.srcSkyTop = this.skyUniforms ? this.skyUniforms.uTopColor.value.clone() : new THREE.Color(p.skyTop);
+        this.targetSkyTop = new THREE.Color(p.skyTop);
+        this.srcCloudCol = this.cloudMat ? this.cloudMat.color.clone() : new THREE.Color(0xffffff);
+        this.targetCloudCol = new THREE.Color(key === 'night' ? 0x1e2c42 : (key === 'dawn' ? 0xffd0a8 : 0xffffff));
+        this.srcSunGlow = this.skyUniforms ? this.skyUniforms.uSunGlow.value : 0.45;
+        this.targetSunGlow = (key === 'night' || this.isRaining) ? 0.0 : (key === 'dawn' ? 0.85 : 0.45);
         this.srcFog.copy(this.scene.fog.color);
         this.targetFog.setHex(p.fogColor);
 
@@ -5873,6 +6702,17 @@ class WeatherManager {
             this.scene.fog.color.lerpColors(this.srcFog, this.targetFog, ease);
             this.scene.fog.density = this.srcFogDens + (this.targetFogDens - this.srcFogDens) * ease;
 
+            if (this.skyUniforms) {
+                this.skyUniforms.uHorizonColor.value.copy(this.scene.background);
+                this.skyUniforms.uTopColor.value.lerpColors(this.srcSkyTop, this.targetSkyTop, ease);
+                this.skyUniforms.uSunColor.value.lerpColors(this.srcSun, this.targetSun, ease);
+                this.skyUniforms.uSunDir.value.copy(this.dirLight.position).normalize();
+                this.skyUniforms.uSunGlow.value = this.srcSunGlow + (this.targetSunGlow - this.srcSunGlow) * ease;
+            }
+            if (this.cloudMat) {
+                this.cloudMat.color.lerpColors(this.srcCloudCol, this.targetCloudCol, ease);
+            }
+
             this.dirLight.color.lerpColors(this.srcSun, this.targetSun, ease);
             this.dirLight.intensity = this.srcSunInt + (this.targetSunInt - this.srcSunInt) * ease;
             this.dirLight.position.set(
@@ -5901,28 +6741,489 @@ class WeatherManager {
         }
 
         // Center celestial objects & weather around train position
-        if (centerPosition && this.starPoints.visible) {
-            this.starPoints.position.x = centerPosition.x;
-            this.starPoints.position.z = centerPosition.z;
-            this.moonMesh.position.set(centerPosition.x - 450, 380, centerPosition.z - 650);
+        if (centerPosition) {
+            if (this.skyDome) {
+                this.skyDome.position.set(centerPosition.x, 0, centerPosition.z);
+            }
+            if (this.starPoints.visible) {
+                this.starPoints.position.x = centerPosition.x;
+                this.starPoints.position.z = centerPosition.z;
+                this.moonMesh.position.set(centerPosition.x - 450, 380, centerPosition.z - 650);
+            }
+        }
+
+        // Drift clouds gently
+        if (this.cloudInst && this.cloudData.length > 0) {
+            for (let i = 0; i < this.cloudData.length; i++) {
+                const c = this.cloudData[i];
+                c.x += c.speed * dt;
+                if (c.x > 1100) c.x = -1100;
+                this.cloudDummy.position.set(c.x, c.y, c.z);
+                this.cloudDummy.rotation.set(0, c.rot, 0);
+                this.cloudDummy.scale.setScalar(c.sc);
+                this.cloudDummy.updateMatrix();
+                this.cloudInst.setMatrixAt(i, this.cloudDummy.matrix);
+            }
+            this.cloudInst.instanceMatrix.needsUpdate = true;
         }
 
         if (this.isRaining && this.rainParticles && centerPosition) {
             this.rainParticles.position.x = centerPosition.x;
             this.rainParticles.position.z = centerPosition.z;
-
-            const posAttr = this.rainGeo.attributes.position;
-            const posArray = posAttr.array;
-            const vels = this.rainGeo.userData.velocities;
-
-            for (let i = 0; i < this.rainCount; i++) {
-                posArray[i * 3 + 1] -= vels[i] * dt;
-                if (posArray[i * 3 + 1] < 0) {
-                    posArray[i * 3 + 1] = 65 + (i % 12);
-                }
+            this.rainTime += dt;
+            if (this.rainMat) {
+                this.rainMat.uniforms.uTime.value = this.rainTime;
             }
-            posAttr.needsUpdate = true;
         }
+    }
+}
+
+</script>
+<script>
+// --- js/journey.js ---
+// journey.js - Interactive Bangladeshi Train Journey Manager
+// Features: 4-Station Route & Timetable, Station Stop & Boarding Loop, Dynamic Color-Light Signals,
+// Speed Limit Zones, Level Crossing Whistle Prompt, Driver Scorecard, & Passing AI Commuter Train.
+
+class JourneyManager {
+    constructor(scene, trackSystem, trainPhysics, audioManager) {
+        this.scene = scene;
+        this.trackSystem = trackSystem;
+        this.physics = trainPhysics;
+        this.audioManager = audioManager;
+        this.trackLength = trackSystem.totalLength || 2200;
+
+        // 4 Stations along the Figure-8 Circuit
+        this.stations = [
+            { id: 'greenlands', nameBn: 'গ্রিনল্যান্ডস জংশন', nameEn: 'Greenlands Jn', u: 0.085, side: -1, builtInEnv: true },
+            { id: 'sabujbagh',  nameBn: 'সবুজবাগ হল্ট',     nameEn: 'Sabujbagh Halt', u: 0.340, side: 1,  builtInEnv: false },
+            { id: 'padmaghat',  nameBn: 'পদ্মা ঘাট',         nameEn: 'Padma Ghat',     u: 0.620, side: -1, builtInEnv: false },
+            { id: 'uttarpara',  nameBn: 'উত্তরপাড়া',        nameEn: 'Uttarpara',      u: 0.860, side: 1,  builtInEnv: false }
+        ];
+
+        this.nextStationIdx = 0;
+        this.stationState = 'EN_ROUTE'; // EN_ROUTE | APPROACHING | BOARDING | READY_DEPART
+        this.dwellTimer = 0;
+        this.dwellDuration = 4.0;
+
+        // Journey Stats
+        this.distanceKm = 0;
+        this.stationsStopped = 0;
+        this.whistleCount = 0;
+        this.score = 0;
+        this._lastU = this.physics.progress;
+
+        // Level Crossing Whistle Prompt
+        this.crossingU = 0.24;
+        this.crossingWhistled = false;
+        this.hornActive = false;
+
+        // Signals & Speed Zones
+        this.signals = [];
+        this.currentSpeedLimit = 80;
+
+        // Passing AI Local Train on parallel siding near Greenlands Junction
+        this.aiTrain = null;
+        this.aiProgress = 0.065;
+        this.aiDir = 1;
+
+        // Cached HUD elements
+        this.elPill = document.getElementById('journey-pill');
+        this.elText = document.getElementById('journey-text');
+        this.elSignalDot = document.getElementById('journey-signal-dot');
+        this.elPrompt = document.getElementById('journey-prompt');
+        this.elScoreVal = document.getElementById('journey-score-val');
+        this.elDistVal = document.getElementById('journey-dist-val');
+        this.elStopsVal = document.getElementById('journey-stops-val');
+        this._lastHudUpdate = 0;
+
+        this._buildAdditionalStations();
+        this._buildBlockSignals();
+        this._buildPassingAITrain();
+        this._initScorecardToggle();
+    }
+
+    _initScorecardToggle() {
+        const card = document.getElementById('journey-scorecard');
+        if (this.elPill && card) {
+            this.elPill.addEventListener('click', (e) => {
+                e.stopPropagation();
+                card.classList.toggle('open');
+            });
+        }
+    }
+
+    _buildAdditionalStations() {
+        const platMat = new THREE.MeshLambertMaterial({ color: 0x878278 });
+        const safetyMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+        const roofMat = new THREE.MeshLambertMaterial({ color: 0x1e5631 });
+        const pillarMat = new THREE.MeshLambertMaterial({ color: 0x263847 });
+        const benchMat = new THREE.MeshLambertMaterial({ color: 0x4a3222 });
+        const passengerCoat = new THREE.MeshLambertMaterial({ color: 0x2563eb });
+        const passengerSkin = new THREE.MeshLambertMaterial({ color: 0xa66d49 });
+
+        const pt = new THREE.Vector3();
+        const tan = new THREE.Vector3();
+
+        this.stations.forEach((st) => {
+            if (st.builtInEnv) return;
+
+            const stGroup = new THREE.Group();
+            const EDGE = 2.05, PW = 4.6, D = EDGE + PW * 0.5;
+            const segCount = 5;
+            const segLen = 11.0;
+
+            for (let k = -2; k <= 2; k++) {
+                const uSeg = (st.u + (k * segLen) / this.trackLength + 1.0) % 1.0;
+                this.trackSystem.samplePoint(uSeg, pt);
+                this.trackSystem.sampleTangent(uSeg, tan);
+
+                const nx = -tan.z, nz = tan.x;
+                const nLen = Math.hypot(nx, nz) || 1.0;
+                const rx = nx / nLen, rz = nz / nLen;
+                const yaw = Math.atan2(tan.x, tan.z);
+
+                const seg = new THREE.Group();
+                seg.position.set(pt.x + st.side * rx * D, pt.y, pt.z + st.side * rz * D);
+                seg.rotation.y = yaw;
+
+                const slab = new THREE.Mesh(new THREE.BoxGeometry(PW, 0.8, segLen + 0.3), platMat);
+                slab.position.set(0, 0.4, 0);
+                seg.add(slab);
+
+                const yel = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.02, segLen + 0.3), safetyMat);
+                yel.position.set(-st.side * (PW * 0.5 - 0.25), 0.81, 0);
+                seg.add(yel);
+
+                if (Math.abs(k) <= 1) {
+                    const canopy = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.2, segLen + 0.2), roofMat);
+                    canopy.position.set(0, 4.6, 0);
+                    seg.add(canopy);
+
+                    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.8, 6), pillarMat);
+                    post.position.set(st.side * 1.1, 2.7, 0);
+                    seg.add(post);
+
+                    const bench = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.45, 2.2), benchMat);
+                    bench.position.set(st.side * 0.8, 0.9, 0);
+                    seg.add(bench);
+                }
+
+                // Waiting passengers on platform
+                if (k === 0 || k === -1) {
+                    const pBody = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.9, 0.28), passengerCoat);
+                    pBody.position.set(-st.side * 0.6, 1.25, 1.4);
+                    const pHead = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.24), passengerSkin);
+                    pHead.position.set(-st.side * 0.6, 1.85, 1.4);
+                    seg.add(pBody, pHead);
+                }
+
+                stGroup.add(seg);
+            }
+
+            // Station Signboard (Bengali + English)
+            this.trackSystem.samplePoint(st.u, pt);
+            this.trackSystem.sampleTangent(st.u, tan);
+            const nx = -tan.z, nz = tan.x;
+            const nLen = Math.hypot(nx, nz) || 1.0;
+            const rx = nx / nLen, rz = nz / nLen;
+            const yaw = Math.atan2(tan.x, tan.z);
+
+            const sCanvas = document.createElement('canvas');
+            sCanvas.width = 512; sCanvas.height = 128;
+            const sg = sCanvas.getContext('2d');
+            sg.fillStyle = '#0f2f1e';
+            sg.fillRect(0, 0, 512, 128);
+            sg.strokeStyle = '#e0b658';
+            sg.lineWidth = 6;
+            sg.strokeRect(4, 4, 504, 120);
+            sg.fillStyle = '#ffffff';
+            sg.font = "bold 32px 'BnSign', 'Noto Sans Bengali', sans-serif";
+            sg.textAlign = 'center';
+            sg.textBaseline = 'middle';
+            sg.fillText(st.nameBn, 256, 44);
+            sg.font = 'bold 22px sans-serif';
+            sg.fillStyle = '#facc15';
+            sg.fillText(st.nameEn.toUpperCase(), 256, 92);
+
+            const signMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sCanvas) });
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.15, 4.6), signMat);
+            sign.position.set(pt.x + st.side * rx * (D + 0.8), pt.y + 4.7, pt.z + st.side * rz * (D + 0.8));
+            sign.rotation.y = yaw;
+            stGroup.add(sign);
+
+            stGroup.traverse((c) => {
+                c.matrixAutoUpdate = false;
+                c.updateMatrix();
+            });
+            this.scene.add(stGroup);
+        });
+    }
+
+    _buildBlockSignals() {
+        const postMat = new THREE.MeshLambertMaterial({ color: 0x22262a });
+        const housingMat = new THREE.MeshLambertMaterial({ color: 0x111418 });
+        const pt = new THREE.Vector3();
+        const tan = new THREE.Vector3();
+
+        this.stations.forEach((st) => {
+            // Place starter/home signal 35m ahead of each station platform
+            const sigU = (st.u + 42 / this.trackLength) % 1.0;
+            this.trackSystem.samplePoint(sigU, pt);
+            this.trackSystem.sampleTangent(sigU, tan);
+            const nx = -tan.z, nz = tan.x;
+            const nLen = Math.hypot(nx, nz) || 1.0;
+            const rx = nx / nLen, rz = nz / nLen;
+            const yaw = Math.atan2(tan.x, tan.z);
+
+            const sigGroup = new THREE.Group();
+            sigGroup.position.set(pt.x + rx * 2.8, pt.y, pt.z + rz * 2.8);
+            sigGroup.rotation.y = yaw;
+
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 5.2, 6), postMat);
+            pole.position.y = 2.6;
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.3, 0.38), housingMat);
+            box.position.y = 4.9;
+            sigGroup.add(pole, box);
+
+            const redMat = new THREE.MeshBasicMaterial({ color: 0x220505 });
+            const amberMat = new THREE.MeshBasicMaterial({ color: 0x221a05 });
+            const greenMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+
+            const lensGeo = new THREE.CircleGeometry(0.13, 8);
+            const rLens = new THREE.Mesh(lensGeo, redMat);
+            rLens.position.set(0, 5.25, -0.2);
+            rLens.rotation.y = Math.PI;
+            const aLens = new THREE.Mesh(lensGeo, amberMat);
+            aLens.position.set(0, 4.9, -0.2);
+            aLens.rotation.y = Math.PI;
+            const gLens = new THREE.Mesh(lensGeo, greenMat);
+            gLens.position.set(0, 4.55, -0.2);
+            gLens.rotation.y = Math.PI;
+            sigGroup.add(rLens, aLens, gLens);
+
+            this.scene.add(sigGroup);
+            this.signals.push({
+                u: sigU,
+                stationId: st.id,
+                redMat,
+                amberMat,
+                greenMat,
+                aspect: 'GREEN'
+            });
+        });
+    }
+
+    _buildPassingAITrain() {
+        // Lightweight 2-car commuter train on a parallel track beside Greenlands Junction
+        const aiGroup = new THREE.Group();
+        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x0f766e }); // Teal-green commuter livery
+        const accentMat = new THREE.MeshLambertMaterial({ color: 0xfacc15 });
+        const roofMat = new THREE.MeshLambertMaterial({ color: 0x64748b });
+        const darkMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+
+        const loco = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.8, 10.5), bodyMat);
+        loco.position.set(0, 2.1, 0);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.84, 0.3, 10.52), accentMat);
+        stripe.position.set(0, 1.5, 0);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.25, 10.2), roofMat);
+        roof.position.set(0, 3.6, 0);
+        const coach = new THREE.Mesh(new THREE.BoxGeometry(2.75, 2.6, 10.8), bodyMat);
+        coach.position.set(0, 2.0, -11.4);
+        const coachRoof = new THREE.Mesh(new THREE.BoxGeometry(2.55, 0.22, 10.5), roofMat);
+        coachRoof.position.set(0, 3.4, -11.4);
+        const under = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 21.5), darkMat);
+        under.position.set(0, 0.65, -5.7);
+
+        const hlMat = new THREE.MeshBasicMaterial({ color: 0xfff6d0 });
+        const hl = new THREE.Mesh(new THREE.CircleGeometry(0.22, 8), hlMat);
+        hl.position.set(0, 2.1, 5.28);
+
+        aiGroup.add(loco, stripe, roof, coach, coachRoof, under, hl);
+        this.scene.add(aiGroup);
+        this.aiTrain = aiGroup;
+        this._aiPt = new THREE.Vector3();
+        this._aiTan = new THREE.Vector3();
+    }
+
+    onHornPressed() {
+        this.hornActive = true;
+        const dCross = this._forwardDistMeters(this.crossingU);
+        if (!this.crossingWhistled && (dCross < 180 || this._absDistMeters(this.crossingU) < 40)) {
+            this.crossingWhistled = true;
+            this.whistleCount++;
+            this.score += 50;
+            this._showPrompt('📢 Crossing Whistle Confirmed! (+50 pts)', '#10b981');
+        }
+    }
+
+    onHornReleased() {
+        this.hornActive = false;
+    }
+
+    _forwardDistMeters(targetU) {
+        let du = targetU - this.physics.progress;
+        if (du < 0) du += 1.0;
+        return du * this.trackLength;
+    }
+
+    _absDistMeters(targetU) {
+        let du = Math.abs(targetU - this.physics.progress);
+        if (du > 0.5) du = 1.0 - du;
+        return du * this.trackLength;
+    }
+
+    _setSignalAspect(sig, aspect) {
+        if (sig.aspect === aspect) return;
+        sig.aspect = aspect;
+        sig.redMat.color.setHex(aspect === 'RED' ? 0xef4444 : 0x220505);
+        sig.amberMat.color.setHex(aspect === 'AMBER' ? 0xf59e0b : 0x221a05);
+        sig.greenMat.color.setHex(aspect === 'GREEN' ? 0x10b981 : 0x052212);
+    }
+
+    _showPrompt(msg, color = '#facc15') {
+        if (!this.elPrompt) return;
+        this.elPrompt.textContent = msg;
+        this.elPrompt.style.borderColor = color;
+        this.elPrompt.classList.add('show');
+        clearTimeout(this._promptTimer);
+        this._promptTimer = setTimeout(() => {
+            if (this.elPrompt) this.elPrompt.classList.remove('show');
+        }, 2800);
+    }
+
+    update(dt) {
+        // 1. Track Distance Traveled
+        let du = this.physics.progress - this._lastU;
+        if (du < -0.5) du += 1.0;
+        if (du > 0.5) du -= 1.0;
+        this.distanceKm += Math.abs(du) * (this.trackLength / 1000.0);
+        this._lastU = this.physics.progress;
+
+        // 2. Passing AI Train Animation (loops smoothly on parallel siding between u=0.05 and u=0.13)
+        if (this.aiTrain) {
+            this.aiProgress += (dt * 9.5) / this.trackLength;
+            if (this.aiProgress > 0.14) this.aiProgress = 0.04;
+            this.trackSystem.samplePoint(this.aiProgress, this._aiPt);
+            this.trackSystem.sampleTangent(this.aiProgress, this._aiTan);
+            const nx = -this._aiTan.z, nz = this._aiTan.x;
+            const nLen = Math.hypot(nx, nz) || 1.0;
+            // Offset +6.0m to the opposite side of Greenlands Junction platform
+            this.aiTrain.position.set(
+                this._aiPt.x + (nx / nLen) * 6.0,
+                this._aiPt.y,
+                this._aiPt.z + (nz / nLen) * 6.0
+            );
+            this.aiTrain.rotation.y = Math.atan2(this._aiTan.x, this._aiTan.z);
+        }
+
+        // 3. Level Crossing Whistle Reset & Prompt
+        const distToCross = this._forwardDistMeters(this.crossingU);
+        if (distToCross > 260 && distToCross < this.trackLength - 80) {
+            this.crossingWhistled = false;
+        } else if (distToCross > 25 && distToCross < 155 && !this.crossingWhistled) {
+            if (this.elPrompt && !this.elPrompt.classList.contains('show')) {
+                this._showPrompt('⚠️ Level Crossing Ahead — Blow Horn (H)!', '#f59e0b');
+            }
+        }
+
+        // 4. Station Stop & Signal State Machine
+        const targetSt = this.stations[this.nextStationIdx];
+        const distToSt = this._absDistMeters(targetSt.u);
+        const fwdToSt = this._forwardDistMeters(targetSt.u);
+        const kmh = this.physics.getKmh();
+
+        // Speed Limit Zone & Audio Environment Hooks
+        const onBridge = this.physics.currentPosition.y > 1.0;
+        this.currentSpeedLimit = (distToSt < 150 || onBridge) ? 45 : 80;
+        if (this.audioManager) {
+            this.audioManager.setBridgeResonance(onBridge, this.physics.getSpeedRatio());
+            this.audioManager.setBrakeSqueal(this.physics.brakeFraction > 0.45 && this.physics.getSpeedRatio() > 0.18);
+            if (this._absDistMeters(this.crossingU) < 85) {
+                this.audioManager.playCrossingBell();
+            }
+        }
+
+        // Update block signals
+        for (let i = 0; i < this.signals.length; i++) {
+            const sig = this.signals[i];
+            if (i === this.nextStationIdx) {
+                if (this.stationState === 'BOARDING') {
+                    this._setSignalAspect(sig, 'RED');
+                } else if (fwdToSt < 220 && this.stationState !== 'READY_DEPART') {
+                    this._setSignalAspect(sig, 'AMBER');
+                } else {
+                    this._setSignalAspect(sig, 'GREEN');
+                }
+            } else {
+                this._setSignalAspect(sig, 'GREEN');
+            }
+        }
+
+        // Station approach & boarding logic
+        if (this.stationState === 'EN_ROUTE') {
+            if (fwdToSt < 240 && distToSt > 38) {
+                this.stationState = 'APPROACHING';
+                this._showPrompt(`📍 Approaching ${targetSt.nameEn} — Slow down to stop`, '#38bdf8');
+            }
+        } else if (this.stationState === 'APPROACHING') {
+            if (distToSt <= 38 && kmh <= 1) {
+                this.stationState = 'BOARDING';
+                this.dwellTimer = this.dwellDuration;
+                this.stationsStopped++;
+                this.score += 100;
+                if (this.audioManager) this.audioManager.playStationBell();
+                this._showPrompt(`🚉 Stopped at ${targetSt.nameEn}! Boarding... (+100 pts)`, '#10b981');
+            } else if (fwdToSt > 350 && distToSt > 60) {
+                // Passed station without stopping -> advance to next station
+                this.nextStationIdx = (this.nextStationIdx + 1) % this.stations.length;
+                this.stationState = 'EN_ROUTE';
+            }
+        } else if (this.stationState === 'BOARDING') {
+            this.dwellTimer -= dt;
+            if (this.dwellTimer <= 0) {
+                this.stationState = 'READY_DEPART';
+                if (this.audioManager) this.audioManager.playGuardWhistle();
+                this._showPrompt(`🟢 Signal Green! Depart ${targetSt.nameEn}`, '#10b981');
+            }
+        } else if (this.stationState === 'READY_DEPART') {
+            if (distToSt > 65) {
+                this.nextStationIdx = (this.nextStationIdx + 1) % this.stations.length;
+                this.stationState = 'EN_ROUTE';
+            }
+        }
+
+        // 5. Throttled HUD Update (~4 Hz)
+        const now = performance.now();
+        if (now - this._lastHudUpdate > 240) {
+            this._lastHudUpdate = now;
+            this._updateHUD(targetSt, fwdToSt, kmh);
+        }
+    }
+
+    _updateHUD(targetSt, fwdToSt, kmh) {
+        const sig = this.signals[this.nextStationIdx];
+        const aspect = sig ? sig.aspect : 'GREEN';
+
+        if (this.elSignalDot) {
+            this.elSignalDot.style.background = aspect === 'RED' ? '#ef4444' : (aspect === 'AMBER' ? '#f59e0b' : '#10b981');
+        }
+
+        if (this.elText) {
+            if (this.stationState === 'BOARDING') {
+                this.elText.textContent = `🚉 ${targetSt.nameEn} · Boarding (${Math.ceil(this.dwellTimer)}s)`;
+            } else if (this.stationState === 'READY_DEPART') {
+                this.elText.textContent = `🟢 Clear to Depart · ${targetSt.nameEn}`;
+            } else {
+                const distStr = fwdToSt >= 1000 ? `${(fwdToSt / 1000).toFixed(1)}km` : `${Math.round(fwdToSt)}m`;
+                const overLimit = kmh > this.currentSpeedLimit + 5;
+                this.elText.textContent = `${targetSt.nameEn} · ${distStr} · Max ${this.currentSpeedLimit}${overLimit ? ' ⚠️' : ''}`;
+            }
+        }
+
+        if (this.elScoreVal) this.elScoreVal.textContent = String(this.score);
+        if (this.elDistVal) this.elDistVal.textContent = `${this.distanceKm.toFixed(2)} km`;
+        if (this.elStopsVal) this.elStopsVal.textContent = String(this.stationsStopped);
     }
 }
 
@@ -5981,7 +7282,6 @@ class GameControls {
         this._initOrbitPointerListeners();
         this._initKeyboardListeners();
         this._initHUDButtons();
-        this._initDraggableDock();
         this._initAudioUnlockListeners();
     }
 
@@ -6133,6 +7433,7 @@ class GameControls {
         this.camModeIdx = 0;
         document.body.classList.remove('deck-view');
         if (this.locomotive) this.locomotive.setDeckView(false);
+        if (this.audioManager) this.audioManager.setCabInteriorMode(false);
         this.camera.near = 0.25;
         this.camera.updateProjectionMatrix();
         this.targetDistance = GAME_CONFIG.camera.defaultDistance;
@@ -6151,6 +7452,9 @@ class GameControls {
 
         if (this.locomotive) {
             this.locomotive.setDeckView(isDeck);
+        }
+        if (this.audioManager) {
+            this.audioManager.setCabInteriorMode(isDeck);
         }
 
         if (isDeck) {
@@ -6172,7 +7476,6 @@ class GameControls {
         if (btnCam) btnCam.querySelector('.hud-val').textContent = this.cameraModes[this.camModeIdx];
 
         // Mode-aware +/- button visibility: hide in Trackside (2) and Drone (3) (B7)
-        const leftHud = document.getElementById('left-camera-hud');
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomOut = document.getElementById('btn-zoom-out');
         const hideZoom = (this.camModeIdx === 2 || this.camModeIdx === 3);
@@ -6202,11 +7505,13 @@ class GameControls {
                     this.audioManager.unlock();
                     this.audioManager.startHorn();
                 }
+                if (window.journeyManager) window.journeyManager.onHornPressed();
             };
             const stopH = (e) => {
                 try { if (e && e.pointerId) btnHorn.releasePointerCapture(e.pointerId); } catch (err) {}
                 btnHorn.classList.remove('active');
                 if (this.audioManager) this.audioManager.stopHorn();
+                if (window.journeyManager) window.journeyManager.onHornReleased();
             };
             btnHorn.addEventListener('pointerdown', startH);
             btnHorn.addEventListener('pointerup', stopH);
@@ -6223,55 +7528,143 @@ class GameControls {
             });
         }
 
-        // 4. Throttle Slider
+        // 4. Throttle / Notch Slider & Pro Cab Controls
         const throttleSlider = document.getElementById('throttle-slider');
         const throttleValDisplay = document.getElementById('throttle-val-display');
+        const brakeSlider = document.getElementById('brake-slider');
+        const brakeValDisplay = document.getElementById('brake-val-display');
+        const btnNotchDown = document.getElementById('btn-notch-down');
+        const btnNotchUp = document.getElementById('btn-notch-up');
+
+        this.syncCabUI = () => {
+            const pro = this.trainPhysics.proCabMode;
+            const revBox = document.getElementById('pro-cab-reverser');
+            const brakeBox = document.getElementById('pro-cab-brake-box');
+            const titleEl = document.getElementById('throttle-title-label');
+            const btnProCab = document.getElementById('btn-toggle-procab');
+
+            if (revBox) revBox.style.display = pro ? 'flex' : 'none';
+            if (brakeBox) brakeBox.style.display = pro ? 'flex' : 'none';
+            if (btnNotchDown) btnNotchDown.style.display = pro ? '' : 'none';
+            if (btnNotchUp) btnNotchUp.style.display = pro ? '' : 'none';
+            if (titleEl) titleEl.textContent = pro ? 'Notch' : 'Throttle';
+            if (btnProCab) {
+                const mv = btnProCab.querySelector('.menu-val');
+                if (mv) mv.textContent = pro ? 'ON' : 'OFF';
+            }
+
+            if (throttleSlider) {
+                if (pro) {
+                    throttleSlider.min = '0';
+                    throttleSlider.max = '8';
+                    throttleSlider.step = '1';
+                    throttleSlider.value = String(this.trainPhysics.notch);
+                    if (throttleValDisplay) throttleValDisplay.textContent = `N${this.trainPhysics.notch}`;
+                } else {
+                    throttleSlider.min = '0';
+                    throttleSlider.max = '100';
+                    throttleSlider.step = '1';
+                    const pct = Math.round(this.trainPhysics.throttleFraction * 100);
+                    throttleSlider.value = String(pct);
+                    if (throttleValDisplay) throttleValDisplay.textContent = `${pct}%`;
+                }
+            }
+
+            if (brakeSlider) {
+                const bp = Math.round(this.trainPhysics.brakeFraction * 100);
+                brakeSlider.value = String(bp);
+                if (brakeValDisplay) {
+                    brakeValDisplay.textContent = bp === 0 ? '0% (REL)' : (bp >= 95 ? '100% (EMG)' : `${bp}%`);
+                }
+            }
+
+            ['back', 'neu', 'fwd'].forEach(k => {
+                const rb = document.getElementById('btn-rev-' + k);
+                if (rb) rb.classList.toggle('active', parseInt(rb.dataset.rev, 10) === this.trainPhysics.reverser);
+            });
+
+            const btnSS = document.getElementById('btn-start-stop');
+            if (btnSS) {
+                const running = this.trainPhysics.isRunning;
+                btnSS.classList.toggle('running', running);
+                btnSS.querySelector('.btn-icon').textContent = running ? '⏹' : '▶';
+                btnSS.querySelector('.btn-label').textContent = running ? 'STOP' : 'START';
+                btnSS.querySelector('.btn-sub').textContent = running ? 'Apply Brakes' : 'Throttle / Go';
+            }
+        };
+
         if (throttleSlider) {
             throttleSlider.addEventListener('input', (e) => {
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setNotch(parseInt(e.target.value, 10));
+                    if (this.audioManager) {
+                        if (this.trainPhysics.isRunning) this.audioManager.startEngine();
+                    }
+                } else {
+                    const val = parseFloat(e.target.value) / 100;
+                    this.trainPhysics.setThrottleFraction(val);
+                }
+                this.syncCabUI();
+                this.cameraMovedRecently = true;
+            });
+        }
+
+        if (btnNotchDown) {
+            btnNotchDown.addEventListener('click', () => {
+                this.trainPhysics.setNotch(this.trainPhysics.notch - 1);
+                this.syncCabUI();
+                this.cameraMovedRecently = true;
+            });
+        }
+        if (btnNotchUp) {
+            btnNotchUp.addEventListener('click', () => {
+                this.trainPhysics.setNotch(this.trainPhysics.notch + 1);
+                if (this.audioManager && this.trainPhysics.isRunning) this.audioManager.startEngine();
+                this.syncCabUI();
+                this.cameraMovedRecently = true;
+            });
+        }
+
+        if (brakeSlider) {
+            brakeSlider.addEventListener('input', (e) => {
+                const prevBrake = this.trainPhysics.brakeFraction;
                 const val = parseFloat(e.target.value) / 100;
-                this.trainPhysics.setThrottleFraction(val);
-                if (throttleValDisplay) throttleValDisplay.textContent = `${Math.round(val * 100)}%`;
+                this.trainPhysics.setBrake(val);
+                if (this.audioManager && val > 0.25 && prevBrake <= 0.25) {
+                    this.audioManager.playAirHiss();
+                }
+                this.syncCabUI();
                 this.cameraMovedRecently = true;
             });
         }
 
-        // 5. Day / Night Mode Cycle Button
-        const btnDayNight = document.getElementById('btn-day-night');
-        if (btnDayNight) {
-            btnDayNight.addEventListener('click', () => {
-                const preset = this.weatherManager.cycleTimeOfDay();
-                btnDayNight.querySelector('.hud-icon').textContent = preset.icon;
-                btnDayNight.querySelector('.hud-val').textContent = preset.name;
-                btnDayNight.classList.toggle('active', preset.name !== 'Day');
+        ['back', 'neu', 'fwd'].forEach(k => {
+            const rb = document.getElementById('btn-rev-' + k);
+            if (rb) {
+                rb.addEventListener('click', () => {
+                    const dir = parseInt(rb.dataset.rev, 10);
+                    this.trainPhysics.setReverser(dir);
+                    this.syncCabUI();
+                    this.cameraMovedRecently = true;
+                });
+            }
+        });
+
+        const btnProCab = document.getElementById('btn-toggle-procab');
+        if (btnProCab) {
+            btnProCab.addEventListener('click', () => {
+                this.trainPhysics.setProCabMode(!this.trainPhysics.proCabMode);
+                this.syncCabUI();
                 this.cameraMovedRecently = true;
             });
         }
 
-        // 6. Rain Toggle Button
-        const btnRain = document.getElementById('btn-rain');
-        if (btnRain) {
-            btnRain.addEventListener('click', () => {
-                const raining = this.weatherManager.toggleRain();
-                btnRain.querySelector('.hud-val').textContent = raining ? 'Rain: ON' : 'Rain: OFF';
-                btnRain.classList.toggle('active', raining);
-                if (this.audioManager) this.audioManager.setRainSound(raining);
-                this.cameraMovedRecently = true;
-            });
-        }
+        this.syncCabUI();
 
-        // 7. Camera Mode Button
+        // 5. Camera Mode Button
         const btnCamMode = document.getElementById('btn-cam-mode');
         if (btnCamMode) {
             btnCamMode.addEventListener('click', () => this.cycleCameraMode());
-        }
-
-        // 8. CPU Eco / FPS Mode Button (legacy cycle - kept for keyboard Q shortcut compatibility)
-        const btnEco = document.getElementById('btn-eco-mode');
-        if (btnEco && this.onPerfModeChange) {
-            btnEco.addEventListener('click', () => {
-                const mode = this.onPerfModeChange();
-                this.cameraMovedRecently = true;
-            });
         }
 
         // 8a. Controls FAB & Panel toggle (positioned above weather button)
@@ -6394,6 +7787,7 @@ class GameControls {
             };
             btnRainToggle.addEventListener('click', () => {
                 const raining = this.weatherManager.toggleRain();
+                this.trainPhysics.isRaining = raining;
                 syncRain(raining);
                 if (this.audioManager) this.audioManager.setRainSound(raining);
                 this.cameraMovedRecently = true;
@@ -6496,6 +7890,7 @@ class GameControls {
             btn.querySelector('.btn-label').textContent = nextState ? 'STOP' : 'START';
             btn.querySelector('.btn-sub').textContent = nextState ? 'Apply Brakes' : 'Throttle / Go';
         }
+        if (this.syncCabUI) this.syncCabUI();
         this.cameraMovedRecently = true;
     }
 
@@ -6519,6 +7914,7 @@ class GameControls {
                 const btnHorn = document.getElementById('btn-horn');
                 if (btnHorn) btnHorn.classList.add('active');
                 if (this.audioManager) this.audioManager.startHorn();
+                if (window.journeyManager) window.journeyManager.onHornPressed();
             } else if (e.code === 'KeyL') {
                 this.toggleLights();
             } else if (e.code === 'KeyC') {
@@ -6529,28 +7925,60 @@ class GameControls {
                     this.cameraMovedRecently = true;
                 }
             } else if (e.code === 'KeyW' || e.code === 'ArrowUp') {
-                const slider = document.getElementById('throttle-slider');
-                if (slider) {
-                    slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
-                    this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
-                    const disp = document.getElementById('throttle-val-display');
-                    if (disp) disp.textContent = `${slider.value}%`;
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setNotch(this.trainPhysics.notch + 1);
+                    if (this.audioManager && this.trainPhysics.isRunning) this.audioManager.startEngine();
+                    if (this.syncCabUI) this.syncCabUI();
                     this.cameraMovedRecently = true;
+                } else {
+                    const slider = document.getElementById('throttle-slider');
+                    if (slider) {
+                        slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
+                        this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                        const disp = document.getElementById('throttle-val-display');
+                        if (disp) disp.textContent = `${slider.value}%`;
+                        this.cameraMovedRecently = true;
+                    }
                 }
             } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
-                const slider = document.getElementById('throttle-slider');
-                if (slider) {
-                    slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
-                    this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
-                    const disp = document.getElementById('throttle-val-display');
-                    if (disp) disp.textContent = `${slider.value}%`;
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setNotch(this.trainPhysics.notch - 1);
+                    if (this.syncCabUI) this.syncCabUI();
                     this.cameraMovedRecently = true;
+                } else {
+                    const slider = document.getElementById('throttle-slider');
+                    if (slider) {
+                        slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
+                        this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                        const disp = document.getElementById('throttle-val-display');
+                        if (disp) disp.textContent = `${slider.value}%`;
+                        this.cameraMovedRecently = true;
+                    }
+                }
+            } else if (e.code === 'KeyB') {
+                if (this.trainPhysics.proCabMode) {
+                    const nextB = this.trainPhysics.brakeFraction > 0.1 ? 0.0 : 0.85;
+                    this.trainPhysics.setBrake(nextB);
+                    if (this.audioManager && nextB > 0.1) this.audioManager.playAirHiss();
+                    if (this.syncCabUI) this.syncCabUI();
+                    this.cameraMovedRecently = true;
+                }
+            } else if (e.code === 'KeyF') {
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setReverser(1);
+                    if (this.syncCabUI) this.syncCabUI();
+                }
+            } else if (e.code === 'KeyV') {
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setReverser(-1);
+                    if (this.syncCabUI) this.syncCabUI();
                 }
             } else if (e.code === 'KeyR') {
                 const btnRainToggle = document.getElementById('btn-rain-toggle');
                 if (btnRainToggle) btnRainToggle.click();
                 else if (this.weatherManager) {
                     const raining = this.weatherManager.toggleRain();
+                    this.trainPhysics.isRaining = raining;
                     if (this.audioManager) this.audioManager.setRainSound(raining);
                 }
             } else if (e.code === 'KeyN') {
@@ -6577,110 +8005,6 @@ class GameControls {
                 if (this.audioManager) this.audioManager.stopHorn();
             }
         });
-    }
-
-    // Draggable Dock with Grip-Only Long-Tap & Clamping (B4 & B5)
-    _initDraggableDock() {
-        const dock = document.getElementById('train-controls-dock');
-        if (!dock) return;
-
-        const clampDock = () => {
-            const maxL = Math.max(8, window.innerWidth - dock.offsetWidth - 8);
-            const maxT = Math.max(8, window.innerHeight - dock.offsetHeight - 8);
-            if (dock.style.left && dock.style.top) {
-                const curL = parseInt(dock.style.left, 10);
-                const curT = parseInt(dock.style.top, 10);
-                if (!isNaN(curL) && !isNaN(curT)) {
-                    dock.style.left = Math.max(8, Math.min(maxL, curL)) + 'px';
-                    dock.style.top = Math.max(8, Math.min(maxT, curT)) + 'px';
-                }
-            }
-        };
-
-        try {
-            const saved = localStorage.getItem('train_dock_pos_v2');
-            if (saved) {
-                const { left, top } = JSON.parse(saved);
-                const maxL = Math.max(8, window.innerWidth - 320);
-                const maxT = Math.max(8, window.innerHeight - 100);
-                dock.style.left = Math.max(8, Math.min(maxL, left)) + 'px';
-                dock.style.top = Math.max(8, Math.min(maxT, top)) + 'px';
-                dock.style.bottom = 'auto';
-                dock.style.transform = 'none';
-            }
-        } catch (err) {}
-
-        window.addEventListener('resize', clampDock);
-        window.addEventListener('orientationchange', clampDock);
-
-        let holdTimer = null;
-        let isDragging = false;
-        let startX = 0, startY = 0, origLeft = 0, origTop = 0;
-
-        // B4: ONLY start drag timer from .drag-grip-indicator, NEVER from control buttons or slider!
-        dock.addEventListener('pointerdown', (e) => {
-            if (!e.target.closest('.drag-grip-indicator')) return;
-            startX = e.clientX;
-            startY = e.clientY;
-            const rect = dock.getBoundingClientRect();
-            origLeft = rect.left;
-            origTop = rect.top;
-
-            holdTimer = setTimeout(() => {
-                isDragging = true;
-                dock.classList.add('dragging-mode');
-                dock.style.left = origLeft + 'px';
-                dock.style.top = origTop + 'px';
-                dock.style.bottom = 'auto';
-                dock.style.transform = 'none';
-                if (navigator.vibrate) navigator.vibrate(20);
-            }, 450);
-        });
-
-        window.addEventListener('pointermove', (e) => {
-            if (!isDragging && holdTimer) {
-                if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
-                    clearTimeout(holdTimer);
-                    holdTimer = null;
-                }
-                return;
-            }
-            if (!isDragging) return;
-
-            const nx = Math.max(8, Math.min(window.innerWidth - dock.offsetWidth - 8, origLeft + (e.clientX - startX)));
-            const ny = Math.max(8, Math.min(window.innerHeight - dock.offsetHeight - 8, origTop + (e.clientY - startY)));
-            dock.style.left = nx + 'px';
-            dock.style.top = ny + 'px';
-        });
-
-        const endDrag = () => {
-            if (holdTimer) {
-                clearTimeout(holdTimer);
-                holdTimer = null;
-            }
-            if (isDragging) {
-                isDragging = false;
-                dock.classList.remove('dragging-mode');
-                try {
-                    localStorage.setItem('train_dock_pos_v2', JSON.stringify({
-                        left: parseInt(dock.style.left, 10),
-                        top: parseInt(dock.style.top, 10)
-                    }));
-                } catch (err) {}
-            }
-        };
-        window.addEventListener('pointerup', endDrag);
-        window.addEventListener('pointercancel', endDrag);
-    }
-
-    resetDockPosition() {
-        const dock = document.getElementById('train-controls-dock');
-        if (!dock) return;
-        localStorage.removeItem('train_dock_pos_v2');
-        dock.style.left = '';
-        dock.style.top = '';
-        dock.style.bottom = '';
-        dock.style.transform = '';
     }
 
     update(dt) {
@@ -6799,7 +8123,7 @@ class GameControls {
     'use strict';
 
     let scene, camera, renderer;
-    let trackSystem, trainPhysics, locomotive, envManager, villageManager, weatherManager, audioManager, gameControls;
+    let trackSystem, trainPhysics, locomotive, envManager, villageManager, weatherManager, journeyManager, audioManager, gameControls;
 
     // Performance & Thermal Governor State
     let perfModeIdx = GAME_CONFIG.performance.defaultModeIndex || 0;
@@ -6926,6 +8250,10 @@ class GameControls {
             u: trainPhysics.progress,
             len: Math.round(trackSystem.totalLength),
             running: trainPhysics.isRunning,
+            proCab: trainPhysics.proCabMode,
+            notch: trainPhysics.notch,
+            rev: trainPhysics.reverser,
+            brake: trainPhysics.brakeFraction,
             throttle: trainPhysics.throttleFraction,
             cam: gameControls ? gameControls.camModeIdx : 0,
             preset: weatherManager ? weatherManager.currentPresetKey : 'day',
@@ -6989,6 +8317,8 @@ class GameControls {
         villageManager = new VillageManager(scene, trackSystem, envManager);
         weatherManager = new WeatherManager(scene, renderer, envManager, villageManager);
         audioManager = new TrainAudioEngine();
+        journeyManager = new JourneyManager(scene, trackSystem, trainPhysics, audioManager);
+        window.journeyManager = journeyManager;
         gameControls = new GameControls(
             camera,
             renderer.domElement,
@@ -7025,6 +8355,7 @@ class GameControls {
             }
             if (saved.rain && weatherManager) {
                 weatherManager.toggleRain();
+                trainPhysics.isRaining = weatherManager.isRaining;
                 const btnRT = document.getElementById('btn-rain-toggle');
                 if (btnRT) {
                     btnRT.textContent = 'ON';
@@ -7041,26 +8372,29 @@ class GameControls {
             if (saved.cam > 0 && gameControls) {
                 for (let c = 0; c < saved.cam; c++) gameControls.cycleCameraMode();
             }
-            // Silent launch: train begins running
-            trainPhysics.setRunning(saved.running !== false);
-            const btnSS = document.getElementById('btn-start-stop');
-            if (btnSS) {
-                btnSS.classList.toggle('running', trainPhysics.isRunning);
-                btnSS.querySelector('.btn-icon').textContent = trainPhysics.isRunning ? '⏹' : '▶';
-                btnSS.querySelector('.btn-label').textContent = trainPhysics.isRunning ? 'STOP' : 'START';
-                btnSS.querySelector('.btn-sub').textContent = trainPhysics.isRunning ? 'Apply Brakes' : 'Throttle / Go';
+            // Silent launch: restore Pro Cab or Simple state
+            if (typeof saved.proCab === 'boolean') {
+                trainPhysics.setProCabMode(saved.proCab);
             }
+            if (trainPhysics.proCabMode) {
+                if (Number.isFinite(saved.rev)) trainPhysics.setReverser(saved.rev);
+                if (Number.isFinite(saved.notch)) trainPhysics.setNotch(saved.notch);
+                if (Number.isFinite(saved.brake)) trainPhysics.setBrake(saved.brake);
+            } else {
+                trainPhysics.setRunning(saved.running !== false);
+            }
+            if (gameControls && gameControls.syncCabUI) gameControls.syncCabUI();
             showToast('Resumed from saved position');
         } else {
-            // Fresh launch: train running smoothly
-            trainPhysics.setRunning(true);
-            const btnSS = document.getElementById('btn-start-stop');
-            if (btnSS) {
-                btnSS.classList.add('running');
-                btnSS.querySelector('.btn-icon').textContent = '⏹';
-                btnSS.querySelector('.btn-label').textContent = 'STOP';
-                btnSS.querySelector('.btn-sub').textContent = 'Apply Brakes';
+            // Fresh launch: train running smoothly in Pro Cab Notch 5
+            if (trainPhysics.proCabMode) {
+                trainPhysics.setReverser(1);
+                trainPhysics.setNotch(5);
+                trainPhysics.setBrake(0.0);
+            } else {
+                trainPhysics.setRunning(true);
             }
+            if (gameControls && gameControls.syncCabUI) gameControls.syncCabUI();
         }
 
         // Attach Reset Progress button in menu drawer
@@ -7120,11 +8454,19 @@ class GameControls {
             return;
         }
 
-        // 2. Frame Pacing & Quality Tier FPS Limiter (Low: 30, Moderate: 40, Medium: 50, High: 60, Idle: 12)
+        // 2. Frame Pacing & Quality Tier FPS Limiter + Thermal Governor (Low: 30, Moderate: 40, Medium: 50, High: 60, Idle: 12)
         const isSettled = villageManager ? villageManager.isSettled() : true;
         const isIdle = (trainPhysics.speed === 0 && !trainPhysics.isRunning && !weatherManager.isRaining && !gameControls.cameraMovedRecently && isSettled);
 
-        const targetFps = isIdle ? 12 : (currentPerfMode.fpsCap || 40);
+        let targetFps = isIdle ? 12 : (currentPerfMode.fpsCap || 40);
+        if (!isIdle && (thermalPressureState === 'serious' || thermalPressureState === 'critical')) {
+            const capFps = thermalPressureState === 'critical' ? 24 : 30;
+            targetFps = Math.min(targetFps, capFps);
+            const targetDpr = Math.min(window.devicePixelRatio || 1, 0.75);
+            if (renderer && renderer.getPixelRatio() > targetDpr + 0.01) {
+                renderer.setPixelRatio(targetDpr);
+            }
+        }
         const minFrameInterval = (1000.0 / targetFps) - 2.0; // 2ms threshold for vsync/rAF timing jitter
         if (lastFrameTime > 0 && (now - lastFrameTime) < minFrameInterval) {
             return;
@@ -7151,6 +8493,7 @@ class GameControls {
         weatherManager.update(dt, trainPhysics.currentPosition);
         envManager.update(trainPhysics.progress, dt);
         if (villageManager) villageManager.update(dt, camera ? camera.position : null);
+        if (journeyManager) journeyManager.update(dt);
         gameControls.update(dt);
         gameControls.cameraMovedRecently = false;
 

@@ -41,6 +41,18 @@
         </button>
     </header>
 
+    <!-- Journey Status Pill & Scorecard -->
+    <div id="journey-pill" title="Tap for Journey Scorecard">
+        <span id="journey-signal-dot"></span>
+        <span id="journey-text">Greenlands Jn · --m · Max 80</span>
+    </div>
+    <div id="journey-scorecard">
+        <div><span>Distance</span><strong id="journey-dist-val">0.00 km</strong></div>
+        <div><span>Stations</span><strong id="journey-stops-val">0</strong></div>
+        <div><span>Score</span><strong id="journey-score-val">0</strong></div>
+    </div>
+    <div id="journey-prompt"></div>
+
     <!-- Slide-Over Menu Drawer (Mobile & Desktop) -->
     <aside id="menu-drawer" class="menu-drawer" aria-label="Simulator Settings">
         <div class="drawer-header">
@@ -59,6 +71,10 @@
             </div>
             <div class="menu-section">
                 <h4>Controls &amp; Layout</h4>
+                <button id="btn-toggle-procab" class="menu-action-btn">
+                    <span>Pro Cab Mode (8-Notch)</span>
+                    <span class="menu-val">ON</span>
+                </button>
                 <button id="btn-toggle-left-hand" class="menu-action-btn">
                     <span>Left-Handed Layout</span>
                     <span class="menu-val">OFF</span>
@@ -79,8 +95,10 @@
             <div class="menu-section">
                 <h4>Keyboard Shortcuts</h4>
                 <div class="shortcuts-grid">
-                    <div><kbd>Space</kbd> Start / Stop</div>
-                    <div><kbd>W / S</kbd> Throttle Up / Down</div>
+                    <div><kbd>Space</kbd> Brake / Go</div>
+                    <div><kbd>W / S</kbd> Notch Up / Down</div>
+                    <div><kbd>B</kbd> Air Brake</div>
+                    <div><kbd>F / V</kbd> Reverser Fwd / Rev</div>
                     <div><kbd>H</kbd> Train Horn</div>
                     <div><kbd>L</kbd> Headlights</div>
                     <div><kbd>C</kbd> Camera Mode</div>
@@ -126,13 +144,33 @@
             </button>
         </div>
 
-        <!-- Cruise Throttle Slider Section -->
+        <!-- Reverser (Pro Cab Mode) -->
+        <div id="pro-cab-reverser" class="reverser-row">
+            <button id="btn-rev-back" class="rev-btn" data-rev="-1">REV</button>
+            <button id="btn-rev-neu" class="rev-btn" data-rev="0">NEU</button>
+            <button id="btn-rev-fwd" class="rev-btn active" data-rev="1">FWD</button>
+        </div>
+
+        <!-- Cruise Throttle / Notch Slider Section -->
         <div class="panel-throttle-box">
             <div class="panel-throttle-head">
-                <span class="throttle-title">Throttle</span>
-                <span id="throttle-val-display" class="throttle-badge">85%</span>
+                <span id="throttle-title-label" class="throttle-title">Notch</span>
+                <div class="notch-stepper" id="notch-stepper">
+                    <button id="btn-notch-down" class="notch-step-btn" title="Notch Down (S)">−</button>
+                    <span id="throttle-val-display" class="throttle-badge">N5</span>
+                    <button id="btn-notch-up" class="notch-step-btn" title="Notch Up (W)">+</button>
+                </div>
             </div>
-            <input id="throttle-slider" type="range" min="0" max="100" value="85" title="Adjust Cruising Speed (Hotkeys: W/S or ↑/↓)">
+            <input id="throttle-slider" type="range" min="0" max="8" step="1" value="5" title="Adjust Throttle Notch (Hotkeys: W/S or ↑/↓)">
+        </div>
+
+        <!-- Air Brake Slider (Pro Cab Mode) -->
+        <div id="pro-cab-brake-box" class="panel-throttle-box" style="margin-top:0; border-top:none; padding-top:0;">
+            <div class="panel-throttle-head">
+                <span class="throttle-title">Air Brake</span>
+                <span id="brake-val-display" class="throttle-badge" style="color:#f87171;">0% (REL)</span>
+            </div>
+            <input id="brake-slider" type="range" min="0" max="100" step="5" value="0" title="Adjust Air Brake (Hotkey: B)">
         </div>
 
         <!-- Camera Navigation: Zoom +, Zoom -, Recenter -->
@@ -217,6 +255,7 @@
     <script src="js/environment.js"></script>
     <script src="js/village.js"></script>
     <script src="js/weather.js"></script>
+    <script src="js/journey.js"></script>
     <script src="js/controls.js"></script>
     <script src="js/main.js"></script>
 </body>

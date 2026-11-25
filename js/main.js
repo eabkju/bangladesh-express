@@ -6,7 +6,7 @@
     'use strict';
 
     let scene, camera, renderer;
-    let trackSystem, trainPhysics, locomotive, envManager, villageManager, weatherManager, audioManager, gameControls;
+    let trackSystem, trainPhysics, locomotive, envManager, villageManager, weatherManager, journeyManager, audioManager, gameControls;
 
     // Performance & Thermal Governor State
     let perfModeIdx = GAME_CONFIG.performance.defaultModeIndex || 0;
@@ -133,6 +133,10 @@
             u: trainPhysics.progress,
             len: Math.round(trackSystem.totalLength),
             running: trainPhysics.isRunning,
+            proCab: trainPhysics.proCabMode,
+            notch: trainPhysics.notch,
+            rev: trainPhysics.reverser,
+            brake: trainPhysics.brakeFraction,
             throttle: trainPhysics.throttleFraction,
             cam: gameControls ? gameControls.camModeIdx : 0,
             preset: weatherManager ? weatherManager.currentPresetKey : 'day',
@@ -196,6 +200,8 @@
         villageManager = new VillageManager(scene, trackSystem, envManager);
         weatherManager = new WeatherManager(scene, renderer, envManager, villageManager);
         audioManager = new TrainAudioEngine();
+        journeyManager = new JourneyManager(scene, trackSystem, trainPhysics, audioManager);
+        window.journeyManager = journeyManager;
         gameControls = new GameControls(
             camera,
             renderer.domElement,
@@ -232,6 +238,7 @@
             }
             if (saved.rain && weatherManager) {
                 weatherManager.toggleRain();
+                trainPhysics.isRaining = weatherManager.isRaining;
                 const btnRT = document.getElementById('btn-rain-toggle');
                 if (btnRT) {
                     btnRT.textContent = 'ON';
@@ -248,26 +255,29 @@
             if (saved.cam > 0 && gameControls) {
                 for (let c = 0; c < saved.cam; c++) gameControls.cycleCameraMode();
             }
-            // Silent launch: train begins running
-            trainPhysics.setRunning(saved.running !== false);
-            const btnSS = document.getElementById('btn-start-stop');
-            if (btnSS) {
-                btnSS.classList.toggle('running', trainPhysics.isRunning);
-                btnSS.querySelector('.btn-icon').textContent = trainPhysics.isRunning ? '⏹' : '▶';
-                btnSS.querySelector('.btn-label').textContent = trainPhysics.isRunning ? 'STOP' : 'START';
-                btnSS.querySelector('.btn-sub').textContent = trainPhysics.isRunning ? 'Apply Brakes' : 'Throttle / Go';
+            // Silent launch: restore Pro Cab or Simple state
+            if (typeof saved.proCab === 'boolean') {
+                trainPhysics.setProCabMode(saved.proCab);
             }
+            if (trainPhysics.proCabMode) {
+                if (Number.isFinite(saved.rev)) trainPhysics.setReverser(saved.rev);
+                if (Number.isFinite(saved.notch)) trainPhysics.setNotch(saved.notch);
+                if (Number.isFinite(saved.brake)) trainPhysics.setBrake(saved.brake);
+            } else {
+                trainPhysics.setRunning(saved.running !== false);
+            }
+            if (gameControls && gameControls.syncCabUI) gameControls.syncCabUI();
             showToast('Resumed from saved position');
         } else {
-            // Fresh launch: train running smoothly
-            trainPhysics.setRunning(true);
-            const btnSS = document.getElementById('btn-start-stop');
-            if (btnSS) {
-                btnSS.classList.add('running');
-                btnSS.querySelector('.btn-icon').textContent = '⏹';
-                btnSS.querySelector('.btn-label').textContent = 'STOP';
-                btnSS.querySelector('.btn-sub').textContent = 'Apply Brakes';
+            // Fresh launch: train running smoothly in Pro Cab Notch 5
+            if (trainPhysics.proCabMode) {
+                trainPhysics.setReverser(1);
+                trainPhysics.setNotch(5);
+                trainPhysics.setBrake(0.0);
+            } else {
+                trainPhysics.setRunning(true);
             }
+            if (gameControls && gameControls.syncCabUI) gameControls.syncCabUI();
         }
 
         // Attach Reset Progress button in menu drawer
@@ -327,11 +337,19 @@
             return;
         }
 
-        // 2. Frame Pacing & Quality Tier FPS Limiter (Low: 30, Moderate: 40, Medium: 50, High: 60, Idle: 12)
+        // 2. Frame Pacing & Quality Tier FPS Limiter + Thermal Governor (Low: 30, Moderate: 40, Medium: 50, High: 60, Idle: 12)
         const isSettled = villageManager ? villageManager.isSettled() : true;
         const isIdle = (trainPhysics.speed === 0 && !trainPhysics.isRunning && !weatherManager.isRaining && !gameControls.cameraMovedRecently && isSettled);
 
-        const targetFps = isIdle ? 12 : (currentPerfMode.fpsCap || 40);
+        let targetFps = isIdle ? 12 : (currentPerfMode.fpsCap || 40);
+        if (!isIdle && (thermalPressureState === 'serious' || thermalPressureState === 'critical')) {
+            const capFps = thermalPressureState === 'critical' ? 24 : 30;
+            targetFps = Math.min(targetFps, capFps);
+            const targetDpr = Math.min(window.devicePixelRatio || 1, 0.75);
+            if (renderer && renderer.getPixelRatio() > targetDpr + 0.01) {
+                renderer.setPixelRatio(targetDpr);
+            }
+        }
         const minFrameInterval = (1000.0 / targetFps) - 2.0; // 2ms threshold for vsync/rAF timing jitter
         if (lastFrameTime > 0 && (now - lastFrameTime) < minFrameInterval) {
             return;
@@ -358,6 +376,7 @@
         weatherManager.update(dt, trainPhysics.currentPosition);
         envManager.update(trainPhysics.progress, dt);
         if (villageManager) villageManager.update(dt, camera ? camera.position : null);
+        if (journeyManager) journeyManager.update(dt);
         gameControls.update(dt);
         gameControls.cameraMovedRecently = false;
 

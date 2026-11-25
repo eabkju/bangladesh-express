@@ -2,10 +2,11 @@
 window.GAME_CONFIG = {
     // Train & Carriages Physics
     train: {
-        maxSpeed: 16.5,         // Maximum cruising speed (m/s, ~60 km/h)
-        acceleration: 2.6,      // Smooth acceleration rate (m/s^2)
-        deceleration: 4.0,      // Responsive braking rate (m/s^2)
-        friction: 0.35,         // Coasting natural friction (m/s^2)
+        maxSpeed: 22.2,         // Maximum cruising speed (m/s, ~80 km/h)
+        acceleration: 2.4,      // Smooth tractive acceleration rate (m/s^2)
+        deceleration: 4.5,      // Responsive air-brake deceleration rate (m/s^2)
+        friction: 0.28,         // Coasting rolling friction (m/s^2)
+        proCabDefault: true,    // Default to 8-Notch Pro Cab Mode
         wheelRadius: 0.52,      // Wheel radius in meters
         bogieDistance: 6.8,     // Distance between locomotive front and rear bogies
         length: 12.2,           // Total locomotive length
@@ -163,4 +164,45 @@ window.GAME_CONFIG = {
         hornFrequencies: [311.13, 370.00, 466.16], // Eb4, F#4, Bb4 chord chime
         rainNoiseDensity: 0.22
     }
+};
+
+// Lightweight zero-dependency BufferGeometry merger for draw-call reduction
+window.mergeStaticGeometries = function(geometries) {
+    if (!geometries || geometries.length === 0) return null;
+    const nonIndexed = geometries.map(g => g.index ? g.toNonIndexed() : g);
+
+    let totalVerts = 0;
+    let hasNormals = true;
+    let hasUvs = true;
+    for (let i = 0; i < nonIndexed.length; i++) {
+        const pos = nonIndexed[i].attributes.position;
+        if (!pos) continue;
+        totalVerts += pos.count;
+        if (!nonIndexed[i].attributes.normal) hasNormals = false;
+        if (!nonIndexed[i].attributes.uv) hasUvs = false;
+    }
+
+    const posArr = new Float32Array(totalVerts * 3);
+    const normArr = hasNormals ? new Float32Array(totalVerts * 3) : null;
+    const uvArr = hasUvs ? new Float32Array(totalVerts * 2) : null;
+
+    let offset3 = 0;
+    let offset2 = 0;
+    for (let i = 0; i < nonIndexed.length; i++) {
+        const g = nonIndexed[i];
+        const pos = g.attributes.position;
+        if (!pos) continue;
+        posArr.set(pos.array, offset3);
+        if (normArr && g.attributes.normal) normArr.set(g.attributes.normal.array, offset3);
+        if (uvArr && g.attributes.uv) uvArr.set(g.attributes.uv.array, offset2);
+        offset3 += pos.count * 3;
+        offset2 += pos.count * 2;
+        if (g !== geometries[i]) g.dispose();
+    }
+
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    if (normArr) merged.setAttribute('normal', new THREE.BufferAttribute(normArr, 3));
+    if (uvArr) merged.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+    return merged;
 };

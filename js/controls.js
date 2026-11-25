@@ -50,7 +50,6 @@ class GameControls {
         this._initOrbitPointerListeners();
         this._initKeyboardListeners();
         this._initHUDButtons();
-        this._initDraggableDock();
         this._initAudioUnlockListeners();
     }
 
@@ -202,6 +201,7 @@ class GameControls {
         this.camModeIdx = 0;
         document.body.classList.remove('deck-view');
         if (this.locomotive) this.locomotive.setDeckView(false);
+        if (this.audioManager) this.audioManager.setCabInteriorMode(false);
         this.camera.near = 0.25;
         this.camera.updateProjectionMatrix();
         this.targetDistance = GAME_CONFIG.camera.defaultDistance;
@@ -220,6 +220,9 @@ class GameControls {
 
         if (this.locomotive) {
             this.locomotive.setDeckView(isDeck);
+        }
+        if (this.audioManager) {
+            this.audioManager.setCabInteriorMode(isDeck);
         }
 
         if (isDeck) {
@@ -241,7 +244,6 @@ class GameControls {
         if (btnCam) btnCam.querySelector('.hud-val').textContent = this.cameraModes[this.camModeIdx];
 
         // Mode-aware +/- button visibility: hide in Trackside (2) and Drone (3) (B7)
-        const leftHud = document.getElementById('left-camera-hud');
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomOut = document.getElementById('btn-zoom-out');
         const hideZoom = (this.camModeIdx === 2 || this.camModeIdx === 3);
@@ -271,11 +273,13 @@ class GameControls {
                     this.audioManager.unlock();
                     this.audioManager.startHorn();
                 }
+                if (window.journeyManager) window.journeyManager.onHornPressed();
             };
             const stopH = (e) => {
                 try { if (e && e.pointerId) btnHorn.releasePointerCapture(e.pointerId); } catch (err) {}
                 btnHorn.classList.remove('active');
                 if (this.audioManager) this.audioManager.stopHorn();
+                if (window.journeyManager) window.journeyManager.onHornReleased();
             };
             btnHorn.addEventListener('pointerdown', startH);
             btnHorn.addEventListener('pointerup', stopH);
@@ -292,55 +296,143 @@ class GameControls {
             });
         }
 
-        // 4. Throttle Slider
+        // 4. Throttle / Notch Slider & Pro Cab Controls
         const throttleSlider = document.getElementById('throttle-slider');
         const throttleValDisplay = document.getElementById('throttle-val-display');
+        const brakeSlider = document.getElementById('brake-slider');
+        const brakeValDisplay = document.getElementById('brake-val-display');
+        const btnNotchDown = document.getElementById('btn-notch-down');
+        const btnNotchUp = document.getElementById('btn-notch-up');
+
+        this.syncCabUI = () => {
+            const pro = this.trainPhysics.proCabMode;
+            const revBox = document.getElementById('pro-cab-reverser');
+            const brakeBox = document.getElementById('pro-cab-brake-box');
+            const titleEl = document.getElementById('throttle-title-label');
+            const btnProCab = document.getElementById('btn-toggle-procab');
+
+            if (revBox) revBox.style.display = pro ? 'flex' : 'none';
+            if (brakeBox) brakeBox.style.display = pro ? 'flex' : 'none';
+            if (btnNotchDown) btnNotchDown.style.display = pro ? '' : 'none';
+            if (btnNotchUp) btnNotchUp.style.display = pro ? '' : 'none';
+            if (titleEl) titleEl.textContent = pro ? 'Notch' : 'Throttle';
+            if (btnProCab) {
+                const mv = btnProCab.querySelector('.menu-val');
+                if (mv) mv.textContent = pro ? 'ON' : 'OFF';
+            }
+
+            if (throttleSlider) {
+                if (pro) {
+                    throttleSlider.min = '0';
+                    throttleSlider.max = '8';
+                    throttleSlider.step = '1';
+                    throttleSlider.value = String(this.trainPhysics.notch);
+                    if (throttleValDisplay) throttleValDisplay.textContent = `N${this.trainPhysics.notch}`;
+                } else {
+                    throttleSlider.min = '0';
+                    throttleSlider.max = '100';
+                    throttleSlider.step = '1';
+                    const pct = Math.round(this.trainPhysics.throttleFraction * 100);
+                    throttleSlider.value = String(pct);
+                    if (throttleValDisplay) throttleValDisplay.textContent = `${pct}%`;
+                }
+            }
+
+            if (brakeSlider) {
+                const bp = Math.round(this.trainPhysics.brakeFraction * 100);
+                brakeSlider.value = String(bp);
+                if (brakeValDisplay) {
+                    brakeValDisplay.textContent = bp === 0 ? '0% (REL)' : (bp >= 95 ? '100% (EMG)' : `${bp}%`);
+                }
+            }
+
+            ['back', 'neu', 'fwd'].forEach(k => {
+                const rb = document.getElementById('btn-rev-' + k);
+                if (rb) rb.classList.toggle('active', parseInt(rb.dataset.rev, 10) === this.trainPhysics.reverser);
+            });
+
+            const btnSS = document.getElementById('btn-start-stop');
+            if (btnSS) {
+                const running = this.trainPhysics.isRunning;
+                btnSS.classList.toggle('running', running);
+                btnSS.querySelector('.btn-icon').textContent = running ? '⏹' : '▶';
+                btnSS.querySelector('.btn-label').textContent = running ? 'STOP' : 'START';
+                btnSS.querySelector('.btn-sub').textContent = running ? 'Apply Brakes' : 'Throttle / Go';
+            }
+        };
+
         if (throttleSlider) {
             throttleSlider.addEventListener('input', (e) => {
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setNotch(parseInt(e.target.value, 10));
+                    if (this.audioManager) {
+                        if (this.trainPhysics.isRunning) this.audioManager.startEngine();
+                    }
+                } else {
+                    const val = parseFloat(e.target.value) / 100;
+                    this.trainPhysics.setThrottleFraction(val);
+                }
+                this.syncCabUI();
+                this.cameraMovedRecently = true;
+            });
+        }
+
+        if (btnNotchDown) {
+            btnNotchDown.addEventListener('click', () => {
+                this.trainPhysics.setNotch(this.trainPhysics.notch - 1);
+                this.syncCabUI();
+                this.cameraMovedRecently = true;
+            });
+        }
+        if (btnNotchUp) {
+            btnNotchUp.addEventListener('click', () => {
+                this.trainPhysics.setNotch(this.trainPhysics.notch + 1);
+                if (this.audioManager && this.trainPhysics.isRunning) this.audioManager.startEngine();
+                this.syncCabUI();
+                this.cameraMovedRecently = true;
+            });
+        }
+
+        if (brakeSlider) {
+            brakeSlider.addEventListener('input', (e) => {
+                const prevBrake = this.trainPhysics.brakeFraction;
                 const val = parseFloat(e.target.value) / 100;
-                this.trainPhysics.setThrottleFraction(val);
-                if (throttleValDisplay) throttleValDisplay.textContent = `${Math.round(val * 100)}%`;
+                this.trainPhysics.setBrake(val);
+                if (this.audioManager && val > 0.25 && prevBrake <= 0.25) {
+                    this.audioManager.playAirHiss();
+                }
+                this.syncCabUI();
                 this.cameraMovedRecently = true;
             });
         }
 
-        // 5. Day / Night Mode Cycle Button
-        const btnDayNight = document.getElementById('btn-day-night');
-        if (btnDayNight) {
-            btnDayNight.addEventListener('click', () => {
-                const preset = this.weatherManager.cycleTimeOfDay();
-                btnDayNight.querySelector('.hud-icon').textContent = preset.icon;
-                btnDayNight.querySelector('.hud-val').textContent = preset.name;
-                btnDayNight.classList.toggle('active', preset.name !== 'Day');
+        ['back', 'neu', 'fwd'].forEach(k => {
+            const rb = document.getElementById('btn-rev-' + k);
+            if (rb) {
+                rb.addEventListener('click', () => {
+                    const dir = parseInt(rb.dataset.rev, 10);
+                    this.trainPhysics.setReverser(dir);
+                    this.syncCabUI();
+                    this.cameraMovedRecently = true;
+                });
+            }
+        });
+
+        const btnProCab = document.getElementById('btn-toggle-procab');
+        if (btnProCab) {
+            btnProCab.addEventListener('click', () => {
+                this.trainPhysics.setProCabMode(!this.trainPhysics.proCabMode);
+                this.syncCabUI();
                 this.cameraMovedRecently = true;
             });
         }
 
-        // 6. Rain Toggle Button
-        const btnRain = document.getElementById('btn-rain');
-        if (btnRain) {
-            btnRain.addEventListener('click', () => {
-                const raining = this.weatherManager.toggleRain();
-                btnRain.querySelector('.hud-val').textContent = raining ? 'Rain: ON' : 'Rain: OFF';
-                btnRain.classList.toggle('active', raining);
-                if (this.audioManager) this.audioManager.setRainSound(raining);
-                this.cameraMovedRecently = true;
-            });
-        }
+        this.syncCabUI();
 
-        // 7. Camera Mode Button
+        // 5. Camera Mode Button
         const btnCamMode = document.getElementById('btn-cam-mode');
         if (btnCamMode) {
             btnCamMode.addEventListener('click', () => this.cycleCameraMode());
-        }
-
-        // 8. CPU Eco / FPS Mode Button (legacy cycle - kept for keyboard Q shortcut compatibility)
-        const btnEco = document.getElementById('btn-eco-mode');
-        if (btnEco && this.onPerfModeChange) {
-            btnEco.addEventListener('click', () => {
-                const mode = this.onPerfModeChange();
-                this.cameraMovedRecently = true;
-            });
         }
 
         // 8a. Controls FAB & Panel toggle (positioned above weather button)
@@ -463,6 +555,7 @@ class GameControls {
             };
             btnRainToggle.addEventListener('click', () => {
                 const raining = this.weatherManager.toggleRain();
+                this.trainPhysics.isRaining = raining;
                 syncRain(raining);
                 if (this.audioManager) this.audioManager.setRainSound(raining);
                 this.cameraMovedRecently = true;
@@ -565,6 +658,7 @@ class GameControls {
             btn.querySelector('.btn-label').textContent = nextState ? 'STOP' : 'START';
             btn.querySelector('.btn-sub').textContent = nextState ? 'Apply Brakes' : 'Throttle / Go';
         }
+        if (this.syncCabUI) this.syncCabUI();
         this.cameraMovedRecently = true;
     }
 
@@ -588,6 +682,7 @@ class GameControls {
                 const btnHorn = document.getElementById('btn-horn');
                 if (btnHorn) btnHorn.classList.add('active');
                 if (this.audioManager) this.audioManager.startHorn();
+                if (window.journeyManager) window.journeyManager.onHornPressed();
             } else if (e.code === 'KeyL') {
                 this.toggleLights();
             } else if (e.code === 'KeyC') {
@@ -598,28 +693,60 @@ class GameControls {
                     this.cameraMovedRecently = true;
                 }
             } else if (e.code === 'KeyW' || e.code === 'ArrowUp') {
-                const slider = document.getElementById('throttle-slider');
-                if (slider) {
-                    slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
-                    this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
-                    const disp = document.getElementById('throttle-val-display');
-                    if (disp) disp.textContent = `${slider.value}%`;
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setNotch(this.trainPhysics.notch + 1);
+                    if (this.audioManager && this.trainPhysics.isRunning) this.audioManager.startEngine();
+                    if (this.syncCabUI) this.syncCabUI();
                     this.cameraMovedRecently = true;
+                } else {
+                    const slider = document.getElementById('throttle-slider');
+                    if (slider) {
+                        slider.value = Math.min(100, parseInt(slider.value, 10) + 5);
+                        this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                        const disp = document.getElementById('throttle-val-display');
+                        if (disp) disp.textContent = `${slider.value}%`;
+                        this.cameraMovedRecently = true;
+                    }
                 }
             } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
-                const slider = document.getElementById('throttle-slider');
-                if (slider) {
-                    slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
-                    this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
-                    const disp = document.getElementById('throttle-val-display');
-                    if (disp) disp.textContent = `${slider.value}%`;
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setNotch(this.trainPhysics.notch - 1);
+                    if (this.syncCabUI) this.syncCabUI();
                     this.cameraMovedRecently = true;
+                } else {
+                    const slider = document.getElementById('throttle-slider');
+                    if (slider) {
+                        slider.value = Math.max(0, parseInt(slider.value, 10) - 5);
+                        this.trainPhysics.setThrottleFraction(parseInt(slider.value, 10) / 100);
+                        const disp = document.getElementById('throttle-val-display');
+                        if (disp) disp.textContent = `${slider.value}%`;
+                        this.cameraMovedRecently = true;
+                    }
+                }
+            } else if (e.code === 'KeyB') {
+                if (this.trainPhysics.proCabMode) {
+                    const nextB = this.trainPhysics.brakeFraction > 0.1 ? 0.0 : 0.85;
+                    this.trainPhysics.setBrake(nextB);
+                    if (this.audioManager && nextB > 0.1) this.audioManager.playAirHiss();
+                    if (this.syncCabUI) this.syncCabUI();
+                    this.cameraMovedRecently = true;
+                }
+            } else if (e.code === 'KeyF') {
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setReverser(1);
+                    if (this.syncCabUI) this.syncCabUI();
+                }
+            } else if (e.code === 'KeyV') {
+                if (this.trainPhysics.proCabMode) {
+                    this.trainPhysics.setReverser(-1);
+                    if (this.syncCabUI) this.syncCabUI();
                 }
             } else if (e.code === 'KeyR') {
                 const btnRainToggle = document.getElementById('btn-rain-toggle');
                 if (btnRainToggle) btnRainToggle.click();
                 else if (this.weatherManager) {
                     const raining = this.weatherManager.toggleRain();
+                    this.trainPhysics.isRaining = raining;
                     if (this.audioManager) this.audioManager.setRainSound(raining);
                 }
             } else if (e.code === 'KeyN') {
@@ -646,110 +773,6 @@ class GameControls {
                 if (this.audioManager) this.audioManager.stopHorn();
             }
         });
-    }
-
-    // Draggable Dock with Grip-Only Long-Tap & Clamping (B4 & B5)
-    _initDraggableDock() {
-        const dock = document.getElementById('train-controls-dock');
-        if (!dock) return;
-
-        const clampDock = () => {
-            const maxL = Math.max(8, window.innerWidth - dock.offsetWidth - 8);
-            const maxT = Math.max(8, window.innerHeight - dock.offsetHeight - 8);
-            if (dock.style.left && dock.style.top) {
-                const curL = parseInt(dock.style.left, 10);
-                const curT = parseInt(dock.style.top, 10);
-                if (!isNaN(curL) && !isNaN(curT)) {
-                    dock.style.left = Math.max(8, Math.min(maxL, curL)) + 'px';
-                    dock.style.top = Math.max(8, Math.min(maxT, curT)) + 'px';
-                }
-            }
-        };
-
-        try {
-            const saved = localStorage.getItem('train_dock_pos_v2');
-            if (saved) {
-                const { left, top } = JSON.parse(saved);
-                const maxL = Math.max(8, window.innerWidth - 320);
-                const maxT = Math.max(8, window.innerHeight - 100);
-                dock.style.left = Math.max(8, Math.min(maxL, left)) + 'px';
-                dock.style.top = Math.max(8, Math.min(maxT, top)) + 'px';
-                dock.style.bottom = 'auto';
-                dock.style.transform = 'none';
-            }
-        } catch (err) {}
-
-        window.addEventListener('resize', clampDock);
-        window.addEventListener('orientationchange', clampDock);
-
-        let holdTimer = null;
-        let isDragging = false;
-        let startX = 0, startY = 0, origLeft = 0, origTop = 0;
-
-        // B4: ONLY start drag timer from .drag-grip-indicator, NEVER from control buttons or slider!
-        dock.addEventListener('pointerdown', (e) => {
-            if (!e.target.closest('.drag-grip-indicator')) return;
-            startX = e.clientX;
-            startY = e.clientY;
-            const rect = dock.getBoundingClientRect();
-            origLeft = rect.left;
-            origTop = rect.top;
-
-            holdTimer = setTimeout(() => {
-                isDragging = true;
-                dock.classList.add('dragging-mode');
-                dock.style.left = origLeft + 'px';
-                dock.style.top = origTop + 'px';
-                dock.style.bottom = 'auto';
-                dock.style.transform = 'none';
-                if (navigator.vibrate) navigator.vibrate(20);
-            }, 450);
-        });
-
-        window.addEventListener('pointermove', (e) => {
-            if (!isDragging && holdTimer) {
-                if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
-                    clearTimeout(holdTimer);
-                    holdTimer = null;
-                }
-                return;
-            }
-            if (!isDragging) return;
-
-            const nx = Math.max(8, Math.min(window.innerWidth - dock.offsetWidth - 8, origLeft + (e.clientX - startX)));
-            const ny = Math.max(8, Math.min(window.innerHeight - dock.offsetHeight - 8, origTop + (e.clientY - startY)));
-            dock.style.left = nx + 'px';
-            dock.style.top = ny + 'px';
-        });
-
-        const endDrag = () => {
-            if (holdTimer) {
-                clearTimeout(holdTimer);
-                holdTimer = null;
-            }
-            if (isDragging) {
-                isDragging = false;
-                dock.classList.remove('dragging-mode');
-                try {
-                    localStorage.setItem('train_dock_pos_v2', JSON.stringify({
-                        left: parseInt(dock.style.left, 10),
-                        top: parseInt(dock.style.top, 10)
-                    }));
-                } catch (err) {}
-            }
-        };
-        window.addEventListener('pointerup', endDrag);
-        window.addEventListener('pointercancel', endDrag);
-    }
-
-    resetDockPosition() {
-        const dock = document.getElementById('train-controls-dock');
-        if (!dock) return;
-        localStorage.removeItem('train_dock_pos_v2');
-        dock.style.left = '';
-        dock.style.top = '';
-        dock.style.bottom = '';
-        dock.style.transform = '';
     }
 
     update(dt) {

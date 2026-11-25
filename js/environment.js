@@ -82,8 +82,11 @@ class EnvironmentManager {
             insulator: new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.insulators }),
             wire: new THREE.LineBasicMaterial({ color: 0x22262a }),
             trunk: new THREE.MeshLambertMaterial({ color: 0x4a3828 }),
-            pineFoliage: new THREE.MeshLambertMaterial({ color: 0x265429 }),
-            oakFoliage: new THREE.MeshLambertMaterial({ color: 0x3b7334 }),
+            palmTrunk: new THREE.MeshLambertMaterial({ color: 0x6b5846 }),
+            palmFoliage: new THREE.MeshLambertMaterial({ color: 0x2d7a36, side: THREE.DoubleSide }),
+            banyanFoliage: new THREE.MeshLambertMaterial({ color: 0x265c29 }),
+            bananaFoliage: new THREE.MeshLambertMaterial({ color: 0x5ba336, side: THREE.DoubleSide }),
+            mustardField: new THREE.MeshLambertMaterial({ color: 0xeab308 }),
             bushFoliage: new THREE.MeshLambertMaterial({ color: 0x4e873c }),
             rock: new THREE.MeshLambertMaterial({ color: 0x6c7075 }),
             cottageWall: cottageGlowMat,
@@ -167,6 +170,38 @@ class EnvironmentManager {
         }
         lilyInst.instanceMatrix.needsUpdate = true;
         lakeGroup.add(lilyInst);
+
+        // Scenic River / Khal (নদী / খাল) running East-West at z = -935 under the twin river bridges
+        const riverMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2400, 38),
+            this.materials.water
+        );
+        riverMesh.rotation.x = -Math.PI / 2;
+        riverMesh.position.set(0, -0.10, -935);
+        lakeGroup.add(riverMesh);
+
+        const riverBankMat = new THREE.MeshLambertMaterial({ color: 0x9e8c6c });
+        [-22, 22].forEach(rz => {
+            const bank = new THREE.Mesh(new THREE.PlaneGeometry(2400, 9), riverBankMat);
+            bank.rotation.x = -Math.PI / 2;
+            bank.position.set(0, -0.17, -935 + rz);
+            lakeGroup.add(bank);
+        });
+
+        // Country Boats (নৌকা) gliding on the River Khal
+        [[-140, -938, 1.5], [0, -932, -1.55], [160, -936, 1.48]].forEach(([bx, bz, rot]) => {
+            const boat = new THREE.Group();
+            const hull = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.55, 5.0), hullMat);
+            hull.position.y = 0.2;
+            const canopy = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 2.2, 6, 1, false, 0, Math.PI), new THREE.MeshLambertMaterial({ color: 0x8c765c }));
+            canopy.rotation.z = Math.PI * 0.5;
+            canopy.rotation.y = Math.PI * 0.5;
+            canopy.position.set(0, 0.55, 0);
+            boat.add(hull, canopy);
+            boat.position.set(bx, -0.06, bz);
+            boat.rotation.y = rot;
+            lakeGroup.add(boat);
+        });
 
         lakeGroup.traverse((c) => {
             c.matrixAutoUpdate = false;
@@ -453,104 +488,163 @@ class EnvironmentManager {
         this.scene.add(wireLine);
     }
 
-    // 100% Instanced Multi-Species Forest, Shrubs & Cliff Boulders (5 draw calls instead of 900+!)
+    // 100% Instanced Bangladeshi Flora: Coconut Palms, Banyan/Mango Trees, Banana Clumps, Mustard Fields & Boulders
     _buildInstancedForestAndRocks() {
-        const pineCount = 320;
-        const oakCount = 220;
-        const bushCount = 260;
-        const rockCount = 65;
+        const palmCount = 300;
+        const banyanCount = 220;
+        const bananaCount = 160;
+        const bushCount = 220;
+        const mustardCount = 36;
+        const rockCount = 55;
 
-        const trunkGeo = new THREE.CylinderGeometry(0.22, 0.42, 3.4, 6);
-        const pineConeGeo = new THREE.ConeGeometry(2.3, 6.2, 7);
-        const oakCrownGeo = new THREE.DodecahedronGeometry(2.6, 1);
-        const bushGeo = new THREE.DodecahedronGeometry(1.2, 0);
-        const rockGeo = new THREE.DodecahedronGeometry(3.2, 0);
+        // Tapered Coconut/Palm trunk + 6-frond radial crown
+        const palmTrunkGeo = new THREE.CylinderGeometry(0.14, 0.28, 7.6, 6);
+        const frondGeoms = [];
+        for (let f = 0; f < 6; f++) {
+            const ang = (f / 6) * Math.PI * 2;
+            const frond = new THREE.BoxGeometry(0.65, 0.08, 3.2);
+            frond.rotateX(0.28);
+            frond.translate(0, -0.35, 1.55);
+            frond.rotateY(ang);
+            frondGeoms.push(frond);
+        }
+        const palmCrownGeo = window.mergeStaticGeometries ? window.mergeStaticGeometries(frondGeoms) : frondGeoms[0];
 
-        const trunkInst = new THREE.InstancedMesh(trunkGeo, this.materials.trunk, pineCount + oakCount);
-        const pineInst = new THREE.InstancedMesh(pineConeGeo, this.materials.pineFoliage, pineCount);
-        const oakInst = new THREE.InstancedMesh(oakCrownGeo, this.materials.oakFoliage, oakCount);
+        // Banyan / Mango trunk & wide canopy
+        const banyanTrunkGeo = new THREE.CylinderGeometry(0.28, 0.50, 3.6, 6);
+        const banyanCrownGeo = new THREE.DodecahedronGeometry(3.1, 1);
+
+        // Banana clump (3 broad angled leaves)
+        const bLeaves = [];
+        for (let l = 0; l < 4; l++) {
+            const leaf = new THREE.BoxGeometry(0.75, 0.06, 2.4);
+            leaf.rotateX(0.45);
+            leaf.translate(0, 1.4, 0.9);
+            leaf.rotateY((l / 4) * Math.PI * 2 + 0.3);
+            bLeaves.push(leaf);
+        }
+        const bananaGeo = window.mergeStaticGeometries ? window.mergeStaticGeometries(bLeaves) : bLeaves[0];
+
+        const bushGeo = new THREE.DodecahedronGeometry(1.15, 0);
+        const mustardGeo = new THREE.BoxGeometry(16, 0.25, 14);
+        const rockGeo = new THREE.DodecahedronGeometry(3.0, 0);
+
+        const palmTrunkInst = new THREE.InstancedMesh(palmTrunkGeo, this.materials.palmTrunk, palmCount);
+        const palmCrownInst = new THREE.InstancedMesh(palmCrownGeo, this.materials.palmFoliage, palmCount);
+        const banyanTrunkInst = new THREE.InstancedMesh(banyanTrunkGeo, this.materials.trunk, banyanCount);
+        const banyanCrownInst = new THREE.InstancedMesh(banyanCrownGeo, this.materials.banyanFoliage, banyanCount);
+        const bananaInst = new THREE.InstancedMesh(bananaGeo, this.materials.bananaFoliage, bananaCount);
         const bushInst = new THREE.InstancedMesh(bushGeo, this.materials.bushFoliage, bushCount);
+        const mustardInst = new THREE.InstancedMesh(mustardGeo, this.materials.mustardField, mustardCount);
         const rockInst = new THREE.InstancedMesh(rockGeo, this.materials.rock, rockCount);
 
         const dummy = new THREE.Object3D();
         const pt = new THREE.Vector3();
         const tan = new THREE.Vector3();
 
-        let tIdx = 0;
-
-        // Deterministic pseudo-random helper
         const rand = (seed) => {
             const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
             return x - Math.floor(x);
         };
 
-        // 1. Pines
-        for (let i = 0; i < pineCount; i++) {
+        const isClear = (x, z, minTrackDist) => {
+            if (Math.hypot(x, z - 680) < 170) return false; // Lake
+            if (Math.abs(z + 935) < 32) return false;       // River Khal
+            return this.trackSystem.getMinDistanceToTrack(x, z) >= minTrackDist;
+        };
+
+        // 1. Coconut & Palm Trees (নারকেল / তাল গাছ)
+        for (let i = 0; i < palmCount; i++) {
             const u = rand(i + 1);
             this.trackSystem.samplePoint(u, pt);
             this.trackSystem.sampleTangent(u, tan);
             const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
             const side = rand(i + 500) < 0.5 ? -1 : 1;
-            const dist = 15.0 + rand(i + 1000) * 95.0;
+            const dist = 14.0 + rand(i + 1000) * 95.0;
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict track clearance (11.5m) and lake clearance
-            if (Math.hypot(x, z - 680) < 168 || this.trackSystem.getMinDistanceToTrack(x, z) < 11.5) {
+            if (!isClear(x, z, 11.5)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
-                trunkInst.setMatrixAt(tIdx++, dummy.matrix);
-                pineInst.setMatrixAt(i, dummy.matrix);
+                palmTrunkInst.setMatrixAt(i, dummy.matrix);
+                palmCrownInst.setMatrixAt(i, dummy.matrix);
                 continue;
             }
 
-            const sc = 0.75 + rand(i + 1500) * 0.65;
-            dummy.position.set(x, 1.6 * sc, z);
-            dummy.rotation.set(0, rand(i) * Math.PI, 0);
+            const sc = 0.8 + rand(i + 1500) * 0.55;
+            const lean = (rand(i + 200) - 0.5) * 0.14;
+            dummy.position.set(x, 3.6 * sc, z);
+            dummy.rotation.set(lean, rand(i) * Math.PI * 2, lean * 0.5);
             dummy.scale.set(sc, sc, sc);
             dummy.updateMatrix();
-            trunkInst.setMatrixAt(tIdx++, dummy.matrix);
+            palmTrunkInst.setMatrixAt(i, dummy.matrix);
 
-            dummy.position.set(x, 5.0 * sc, z);
+            dummy.position.set(x + Math.sin(lean) * 3.5 * sc, 7.3 * sc, z);
             dummy.updateMatrix();
-            pineInst.setMatrixAt(i, dummy.matrix);
+            palmCrownInst.setMatrixAt(i, dummy.matrix);
         }
 
-        // 2. Deciduous Oaks
-        for (let i = 0; i < oakCount; i++) {
+        // 2. Banyan / Mango Trees (বট ও আম গাছ)
+        for (let i = 0; i < banyanCount; i++) {
             const s = i + 3000;
             const u = rand(s);
             this.trackSystem.samplePoint(u, pt);
             this.trackSystem.sampleTangent(u, tan);
             const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
             const side = rand(s + 200) < 0.5 ? -1 : 1;
-            const dist = 14.0 + rand(s + 400) * 85.0;
+            const dist = 15.0 + rand(s + 400) * 85.0;
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict track clearance (11.5m) and lake clearance
-            if (Math.hypot(x, z - 680) < 168 || this.trackSystem.getMinDistanceToTrack(x, z) < 11.5) {
+            if (!isClear(x, z, 12.0)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
-                trunkInst.setMatrixAt(tIdx++, dummy.matrix);
-                oakInst.setMatrixAt(i, dummy.matrix);
+                banyanTrunkInst.setMatrixAt(i, dummy.matrix);
+                banyanCrownInst.setMatrixAt(i, dummy.matrix);
                 continue;
             }
 
-            const sc = 0.8 + rand(s + 600) * 0.6;
-            dummy.position.set(x, 1.6 * sc, z);
+            const sc = 0.85 + rand(s + 600) * 0.65;
+            dummy.position.set(x, 1.7 * sc, z);
             dummy.rotation.set(0, rand(s) * Math.PI, 0);
             dummy.scale.set(sc, sc, sc);
             dummy.updateMatrix();
-            trunkInst.setMatrixAt(tIdx++, dummy.matrix);
+            banyanTrunkInst.setMatrixAt(i, dummy.matrix);
 
-            dummy.position.set(x, 4.4 * sc, z);
-            dummy.scale.set(sc * 1.15, sc * 0.9, sc * 1.15);
+            dummy.position.set(x, 4.6 * sc, z);
+            dummy.scale.set(sc * 1.35, sc * 0.85, sc * 1.35);
             dummy.updateMatrix();
-            oakInst.setMatrixAt(i, dummy.matrix);
+            banyanCrownInst.setMatrixAt(i, dummy.matrix);
         }
 
-        // 3. Trackside Bushes
+        // 3. Banana Clumps (কলাগাছ)
+        for (let i = 0; i < bananaCount; i++) {
+            const s = i + 4500;
+            const u = rand(s);
+            this.trackSystem.samplePoint(u, pt);
+            this.trackSystem.sampleTangent(u, tan);
+            const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
+            const side = rand(s + 150) < 0.5 ? -1 : 1;
+            const dist = 10.5 + rand(s + 250) * 45.0;
+            const x = pt.x + (nx / nLen) * side * dist;
+            const z = pt.z + (nz / nLen) * side * dist;
+
+            if (!isClear(x, z, 9.5)) {
+                dummy.scale.set(0, 0, 0);
+                dummy.updateMatrix();
+                bananaInst.setMatrixAt(i, dummy.matrix);
+                continue;
+            }
+            const sc = 0.75 + rand(s + 350) * 0.5;
+            dummy.position.set(x, 0, z);
+            dummy.rotation.set(0, rand(s) * Math.PI * 2, 0);
+            dummy.scale.set(sc, sc, sc);
+            dummy.updateMatrix();
+            bananaInst.setMatrixAt(i, dummy.matrix);
+        }
+
+        // 4. Trackside Bushes
         for (let i = 0; i < bushCount; i++) {
             const s = i + 6000;
             const u = rand(s);
@@ -562,8 +656,7 @@ class EnvironmentManager {
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict clearance: bushes never on rails
-            if (this.trackSystem.getMinDistanceToTrack(x, z) < 6.5) {
+            if (!isClear(x, z, 6.8)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
                 bushInst.setMatrixAt(i, dummy.matrix);
@@ -578,7 +671,32 @@ class EnvironmentManager {
             bushInst.setMatrixAt(i, dummy.matrix);
         }
 
-        // 4. Cliff Boulders
+        // 5. Golden Mustard Fields (হলুদ সরিষা ক্ষেত)
+        for (let i = 0; i < mustardCount; i++) {
+            const s = i + 7500;
+            const u = rand(s);
+            this.trackSystem.samplePoint(u, pt);
+            this.trackSystem.sampleTangent(u, tan);
+            const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
+            const side = (i % 2 === 0) ? 1 : -1;
+            const dist = 26.0 + rand(s + 100) * 55.0;
+            const x = pt.x + (nx / nLen) * side * dist;
+            const z = pt.z + (nz / nLen) * side * dist;
+
+            if (!isClear(x, z, 18.0)) {
+                dummy.scale.set(0, 0, 0);
+                dummy.updateMatrix();
+                mustardInst.setMatrixAt(i, dummy.matrix);
+                continue;
+            }
+            dummy.position.set(x, -0.10, z);
+            dummy.rotation.set(0, Math.atan2(tan.x, tan.z), 0);
+            dummy.scale.set(0.8 + rand(s) * 0.6, 1, 0.8 + rand(s + 20) * 0.6);
+            dummy.updateMatrix();
+            mustardInst.setMatrixAt(i, dummy.matrix);
+        }
+
+        // 6. Cliff Boulders
         for (let i = 0; i < rockCount; i++) {
             const s = i + 9000;
             const u = rand(s);
@@ -586,12 +704,11 @@ class EnvironmentManager {
             this.trackSystem.sampleTangent(u, tan);
             const nx = -tan.z, nz = tan.x, nLen = Math.hypot(nx, nz) || 1;
             const side = rand(s + 50) < 0.5 ? -1 : 1;
-            const dist = 18.0 + rand(s + 150) * 55.0;
+            const dist = 20.0 + rand(s + 150) * 55.0;
             const x = pt.x + (nx / nLen) * side * dist;
             const z = pt.z + (nz / nLen) * side * dist;
 
-            // Strict clearance: boulders never on track
-            if (this.trackSystem.getMinDistanceToTrack(x, z) < 9.5) {
+            if (!isClear(x, z, 10.0)) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
                 rockInst.setMatrixAt(i, dummy.matrix);
@@ -608,17 +725,12 @@ class EnvironmentManager {
             rockInst.setMatrixAt(i, dummy.matrix);
         }
 
-        trunkInst.instanceMatrix.needsUpdate = true;
-        pineInst.instanceMatrix.needsUpdate = true;
-        oakInst.instanceMatrix.needsUpdate = true;
-        bushInst.instanceMatrix.needsUpdate = true;
-        rockInst.instanceMatrix.needsUpdate = true;
-
-        [trunkInst, pineInst, oakInst, bushInst, rockInst].forEach(inst => {
+        [palmTrunkInst, palmCrownInst, banyanTrunkInst, banyanCrownInst, bananaInst, bushInst, mustardInst, rockInst].forEach(inst => {
+            inst.instanceMatrix.needsUpdate = true;
             inst.matrixAutoUpdate = false;
             inst.updateMatrix();
         });
-        this.scene.add(trunkInst, pineInst, oakInst, bushInst, rockInst);
+        this.scene.add(palmTrunkInst, palmCrownInst, banyanTrunkInst, banyanCrownInst, bananaInst, bushInst, mustardInst, rockInst);
     }
 
     // 100% Instanced Bangladeshi Tin-Roof Huts with Night-Glowing Windows (Section 21.1)
@@ -656,8 +768,8 @@ class EnvironmentManager {
 
             const bx = pt.x + (nx / nLen) * side * dist;
             const bz = pt.z + (nz / nLen) * side * dist;
-            // Strictly keep clear of tracks (min 22m safe corridor), lake, bridge, and station
-            if (Math.hypot(bx, bz - 680) < 170 || this.trackSystem.getMinDistanceToTrack(bx, bz) < 22.0) {
+            // Strictly keep clear of tracks (min 22m safe corridor), lake, river, bridge, and station
+            if (Math.hypot(bx, bz - 680) < 170 || Math.abs(bz + 935) < 34 || this.trackSystem.getMinDistanceToTrack(bx, bz) < 22.0) {
                 dummy.scale.set(0, 0, 0);
                 dummy.updateMatrix();
                 bodyInst.setMatrixAt(i, dummy.matrix);

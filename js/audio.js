@@ -7,9 +7,17 @@ class TrainAudioEngine {
         this.isInitialized = false;
         this.isMuted = false;
 
+        // Master & Cab Acoustic Muffler
         this.masterGain = null;
+        this.envFilter = null;
         this.analyser = null;
         this._analyserData = null;
+
+        // Spatial & Event Audio
+        this.bridgeGain = null;
+        this.squealGain = null;
+        this.jointBuffer = null;
+        this._lastBellT = 0;
 
         // Engine synthesis
         this.engineOsc1 = null;
@@ -99,10 +107,17 @@ class TrainAudioEngine {
         this.masterGain.gain.setValueAtTime(0.8, this.audioCtx.currentTime);
         this.masterGain.connect(this.analyser);
 
+        // Cab interior acoustic muffler filter (2200 Hz in Deck POV, 18000 Hz outside)
+        this.envFilter = this.audioCtx.createBiquadFilter();
+        this.envFilter.type = 'lowpass';
+        this.envFilter.frequency.setValueAtTime(18000, this.audioCtx.currentTime);
+        this.envFilter.connect(this.masterGain);
+
         this._buildSharedBuffers();
         this._setupDieselEngine();
         this._setupTrackRhythm();
         this._setupRainAmbience();
+        this._setupBridgeAndSqueal();
 
         this.isInitialized = true;
     }
@@ -193,7 +208,7 @@ class TrainAudioEngine {
 
         this.engineFilter.connect(this.chugGain);
         this.chugGain.connect(this.engineGain);
-        this.engineGain.connect(this.masterGain);
+        this.engineGain.connect(this.envFilter || this.masterGain);
 
         this.engineOsc1.start();
         this.engineOsc2.start();
@@ -233,7 +248,7 @@ class TrainAudioEngine {
 
         this.wheelSource.connect(hp);
         hp.connect(this.wheelGain);
-        this.wheelGain.connect(this.masterGain);
+        this.wheelGain.connect(this.envFilter || this.masterGain);
         this.wheelSource.start();
     }
 
@@ -251,8 +266,115 @@ class TrainAudioEngine {
 
         src.connect(filter);
         filter.connect(this.rainGain);
-        this.rainGain.connect(this.masterGain);
+        this.rainGain.connect(this.envFilter || this.masterGain);
         src.start();
+    }
+
+    _setupBridgeAndSqueal() {
+        const t = this.audioCtx.currentTime;
+        // 1. Bridge metallic rumble (lowpass noise)
+        const bSrc = this.audioCtx.createBufferSource();
+        bSrc.buffer = this.noiseBuffer;
+        bSrc.loop = true;
+        const bFilt = this.audioCtx.createBiquadFilter();
+        bFilt.type = 'bandpass';
+        bFilt.frequency.setValueAtTime(135, t);
+        bFilt.Q.setValueAtTime(1.8, t);
+        this.bridgeGain = this.audioCtx.createGain();
+        this.bridgeGain.gain.setValueAtTime(0.0, t);
+        bSrc.connect(bFilt);
+        bFilt.connect(this.bridgeGain);
+        this.bridgeGain.connect(this.envFilter || this.masterGain);
+        bSrc.start();
+
+        // 2. Brake squeal (high-Q bandpass noise)
+        const sSrc = this.audioCtx.createBufferSource();
+        sSrc.buffer = this.noiseBuffer;
+        sSrc.loop = true;
+        const sFilt = this.audioCtx.createBiquadFilter();
+        sFilt.type = 'bandpass';
+        sFilt.frequency.setValueAtTime(2450, t);
+        sFilt.Q.setValueAtTime(12.0, t);
+        this.squealGain = this.audioCtx.createGain();
+        this.squealGain.gain.setValueAtTime(0.0, t);
+        sSrc.connect(sFilt);
+        sFilt.connect(this.squealGain);
+        this.squealGain.connect(this.envFilter || this.masterGain);
+        sSrc.start();
+    }
+
+    setCabInteriorMode(isCab) {
+        if (!this.isInitialized || !this.audioCtx || !this.envFilter) return;
+        this.envFilter.frequency.setTargetAtTime(isCab ? 2200 : 18000, this.audioCtx.currentTime, 0.15);
+    }
+
+    setBridgeResonance(onBridge, speedRatio = 0.5) {
+        if (!this.isInitialized || !this.audioCtx || !this.bridgeGain) return;
+        const target = (onBridge && speedRatio > 0.05) ? Math.min(0.24, 0.08 + speedRatio * 0.16) : 0.0;
+        this.bridgeGain.gain.setTargetAtTime(target, this.audioCtx.currentTime, 0.12);
+    }
+
+    setBrakeSqueal(active) {
+        if (!this.isInitialized || !this.audioCtx || !this.squealGain) return;
+        this.squealGain.gain.setTargetAtTime(active ? 0.035 : 0.0, this.audioCtx.currentTime, 0.08);
+    }
+
+    playCrossingBell() {
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const now = performance.now();
+        if (now - this._lastBellT < 450) return;
+        this._lastBellT = now;
+
+        const t = this.audioCtx.currentTime;
+        const osc = this.audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1568, t); // G6 metallic bell
+        const g = this.audioCtx.createGain();
+        g.gain.setValueAtTime(0.08, t);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.28);
+        osc.connect(g);
+        g.connect(this.envFilter || this.masterGain);
+        osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (e) {} };
+        osc.start(t);
+        osc.stop(t + 0.30);
+    }
+
+    playGuardWhistle() {
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const t = this.audioCtx.currentTime;
+        const osc1 = this.audioCtx.createOscillator();
+        const osc2 = this.audioCtx.createOscillator();
+        osc1.type = 'triangle';
+        osc2.type = 'triangle';
+        osc1.frequency.setValueAtTime(2650, t);
+        osc2.frequency.setValueAtTime(2820, t);
+        const g = this.audioCtx.createGain();
+        g.gain.setValueAtTime(0.0, t);
+        g.gain.linearRampToValueAtTime(0.09, t + 0.03);
+        g.gain.setValueAtTime(0.09, t + 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.55);
+        osc1.connect(g);
+        osc2.connect(g);
+        g.connect(this.masterGain);
+        osc1.onended = () => { try { osc1.disconnect(); osc2.disconnect(); g.disconnect(); } catch (e) {} };
+        osc1.start(t); osc2.start(t);
+        osc1.stop(t + 0.58); osc2.stop(t + 0.58);
+    }
+
+    playStationBell() {
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+        const t = this.audioCtx.currentTime;
+        const osc = this.audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, t);
+        const g = this.audioCtx.createGain();
+        g.gain.setValueAtTime(0.12, t);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.65);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (e) {} };
+        osc.start(t);
+        osc.stop(t + 0.68);
     }
 
     toggleMute() {

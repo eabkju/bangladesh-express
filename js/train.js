@@ -11,16 +11,18 @@ class TrainLocomotive {
         this.scene.add(this.root);
 
         this.bodyGroup = new THREE.Group();
+        this.bodyGroup.rotation.order = 'YXZ';
         this.root.add(this.bodyGroup);
 
-        this.frontBogie = null;
-        this.rearBogie = null;
-        this.wheelMeshes = [];
+        this.bogieCount = (1 + (GAME_CONFIG.train.carriageCount || 5)) * 2;
+        this.bogieInst = null;
+        this.wheelInst = null;
+        this._bogieDummy = new THREE.Object3D();
+        this._wheelDummy = new THREE.Object3D();
         this.roofFans = [];
 
-        // Master Lighting & Emissive Materials
+        // Master Lighting & Emissive Materials (Zero SpotLight shader overhead!)
         this.lightsOn = false;
-        this.headlight = null;
         this.headlightBeams = [];
         this.groundGlow = null;
         this.markerLamps = [];
@@ -42,6 +44,10 @@ class TrainLocomotive {
         this.amperageNeedle = null;
         this.throttleHandle = null;
         this.brakeHandle = null;
+        this.reverserHandle = null;
+        this.dashMat = null;
+        this.windRainMesh = null;
+        this.windRainTex = null;
         this.warningLampMat = null;
         this.wiperArm = null;
 
@@ -448,9 +454,14 @@ class TrainLocomotive {
         deskBase.position.set(0, -0.25, 0);
         deskGroup.add(deskBase);
 
-        // Sloped Instrument Panel
-        const panelMat = new THREE.MeshLambertMaterial({ map: this.dashTex });
-        const dashPanel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.42, 0.08), panelMat);
+        // Sloped Instrument Panel (Backlit when lights ON)
+        this.dashMat = new THREE.MeshLambertMaterial({
+            map: this.dashTex,
+            emissive: 0xffe299,
+            emissiveMap: this.dashTex,
+            emissiveIntensity: 0.15
+        });
+        const dashPanel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.42, 0.08), this.dashMat);
         dashPanel.rotation.x = -Math.PI * 0.22;
         dashPanel.position.set(0, 0.22, 0.12);
         deskGroup.add(dashPanel);
@@ -488,6 +499,12 @@ class TrainLocomotive {
         this.brakeHandle.position.set(-0.24, 0.18, 0.18);
         deskGroup.add(this.brakeHandle);
 
+        const revGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6);
+        revGeo.translate(0, 0.08, 0);
+        this.reverserHandle = new THREE.Mesh(revGeo, handrailMat);
+        this.reverserHandle.position.set(-0.56, 0.18, 0.18);
+        deskGroup.add(this.reverserHandle);
+
         // Warning Indicator Lamp (toggles with LIGHTS)
         this.warningLampMat = new THREE.MeshBasicMaterial({ color: 0x331100 });
         const warnLamp = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), this.warningLampMat);
@@ -503,6 +520,29 @@ class TrainLocomotive {
         );
         windGlass.position.set(0, 3.15, cabL * 0.5 - 0.02);
         this.cabInterior.add(windGlass);
+
+        // Windshield Rain Streaks Overlay (scrolls in Deck POV when raining)
+        const rCanvas = document.createElement('canvas');
+        rCanvas.width = 128; rCanvas.height = 128;
+        const rg = rCanvas.getContext('2d');
+        rg.clearRect(0, 0, 128, 128);
+        rg.fillStyle = 'rgba(210, 235, 255, 0.45)';
+        for (let i = 0; i < 42; i++) {
+            const rx = (i * 31) % 124;
+            const ry = (i * 53) % 116;
+            rg.fillRect(rx, ry, 2, 10 + (i % 8));
+        }
+        this.windRainTex = new THREE.CanvasTexture(rCanvas);
+        this.windRainTex.wrapS = THREE.RepeatWrapping;
+        this.windRainTex.wrapT = THREE.RepeatWrapping;
+        this.windRainTex.repeat.set(2, 1.5);
+        this.windRainMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.36, 1.32),
+            new THREE.MeshBasicMaterial({ map: this.windRainTex, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })
+        );
+        this.windRainMesh.position.set(0, 3.15, cabL * 0.5 - 0.01);
+        this.windRainMesh.visible = false;
+        this.cabInterior.add(this.windRainMesh);
 
         // Windshield Wiper Arm (animated in rain)
         const wiperGeo = new THREE.BoxGeometry(0.018, 0.65, 0.02);
@@ -560,36 +600,35 @@ class TrainLocomotive {
             this.headlightBeams.push(cone);
         });
 
-        // Forward Dynamic SpotLight (Center beam with wide angle = 0.62)
-        this.headlight = new THREE.SpotLight(0xfff4d2, 0.0, 110, 0.62, 0.45, 1.1);
-        this.headlight.position.set(0, 2.35, frontZ + 0.25);
-        const targetObj = new THREE.Object3D();
-        targetObj.position.set(0, 0.4, frontZ + 55);
-        this.bodyGroup.add(targetObj);
-        this.headlight.target = targetObj;
-        this.bodyGroup.add(this.headlight);
+        // Forward Ground Glow Projection Decal (soft radial beam on rails ahead, zero SpotLight cost!)
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 128; glowCanvas.height = 256;
+        const gg = glowCanvas.getContext('2d');
+        const grad = gg.createRadialGradient(64, 220, 8, 64, 128, 128);
+        grad.addColorStop(0, 'rgba(255, 244, 190, 0.55)');
+        grad.addColorStop(0.5, 'rgba(255, 230, 140, 0.22)');
+        grad.addColorStop(1, 'rgba(255, 220, 120, 0.0)');
+        gg.fillStyle = grad;
+        gg.fillRect(0, 0, 128, 256);
 
-        // Forward Ground Glow Decal (additive quad on rails ahead at night)
-        const glowGeo = new THREE.PlaneGeometry(3.8, 22);
+        const glowGeo = new THREE.PlaneGeometry(6.8, 36);
         glowGeo.rotateX(-Math.PI * 0.5);
         this.groundGlow = new THREE.Mesh(
             glowGeo,
             new THREE.MeshBasicMaterial({
-                color: 0xffe899,
+                map: new THREE.CanvasTexture(glowCanvas),
                 transparent: true,
-                opacity: 0.12,
+                opacity: 0.75,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending
             })
         );
-        this.groundGlow.position.set(0, 0.12, frontZ + 14);
+        this.groundGlow.position.set(0, 0.14, frontZ + 19);
         this.groundGlow.visible = false;
         this.bodyGroup.add(this.groundGlow);
 
-        // 6. Articulated Locomotive Bogies
-        this.frontBogie = this.createBogie();
-        this.rearBogie = this.createBogie();
-        this.root.add(this.frontBogie, this.rearBogie);
+        // 6. Instanced Articulated Bogies & Wheels (2 draw calls for entire train!)
+        this._initInstancedBogiesAndWheels();
     }
 
     buildCarriages() {
@@ -636,6 +675,7 @@ class TrainLocomotive {
 
         for (let i = 0; i < coachCount; i++) {
             const carGroup = new THREE.Group();
+            carGroup.rotation.order = 'YXZ';
             this.root.add(carGroup);
 
             // Soft ground shadow
@@ -675,50 +715,41 @@ class TrainLocomotive {
                 });
             }
 
-            // Bogies
-            const frontBogie = this.createBogie();
-            const rearBogie = this.createBogie();
-            this.root.add(frontBogie, rearBogie);
-
             this.carriages.push({
-                group: carGroup,
-                frontBogie: frontBogie,
-                rearBogie: rearBogie
+                group: carGroup
             });
         }
     }
 
-    createBogie() {
-        const bogieGroup = new THREE.Group();
+    _initInstancedBogiesAndWheels() {
         const frameMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainBogies });
         const wheelMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainWheels });
-
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(2.28, 0.26, 2.4), frameMat);
-        frame.position.y = 0.64;
-        bogieGroup.add(frame);
-
         const wheelR = GAME_CONFIG.train.wheelRadius || 0.52;
         const halfGauge = 0.82;
+
+        // Merge bogie frame + 2 axles into 1 geometry
+        const frameGeo = new THREE.BoxGeometry(2.28, 0.26, 2.4);
+        frameGeo.translate(0, 0.64, 0);
+        const axle1 = new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6);
+        axle1.rotateZ(Math.PI * 0.5);
+        axle1.translate(0, wheelR, -0.82);
+        const axle2 = new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6);
+        axle2.rotateZ(Math.PI * 0.5);
+        axle2.translate(0, wheelR, 0.82);
+
+        const mergedBogieGeo = window.mergeStaticGeometries
+            ? window.mergeStaticGeometries([frameGeo, axle1, axle2])
+            : frameGeo;
+
+        this.bogieInst = new THREE.InstancedMesh(mergedBogieGeo, frameMat, this.bogieCount);
+        this.bogieInst.frustumCulled = false;
+
         const wheelGeo = new THREE.CylinderGeometry(wheelR, wheelR, 0.12, 10);
         wheelGeo.rotateZ(Math.PI * 0.5);
+        this.wheelInst = new THREE.InstancedMesh(wheelGeo, wheelMat, this.bogieCount * 4);
+        this.wheelInst.frustumCulled = false;
 
-        [-0.82, 0.82].forEach(z => {
-            const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, halfGauge * 2, 6), frameMat);
-            axle.position.set(0, wheelR, z);
-            axle.rotateZ(Math.PI * 0.5);
-            bogieGroup.add(axle);
-
-            [-halfGauge, halfGauge].forEach(x => {
-                const wheelPivot = new THREE.Group();
-                wheelPivot.position.set(x, wheelR, z);
-                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                wheelPivot.add(wheel);
-                bogieGroup.add(wheelPivot);
-                this.wheelMeshes.push(wheelPivot);
-            });
-        });
-
-        return bogieGroup;
+        this.root.add(this.bogieInst, this.wheelInst);
     }
 
     _initExhaustSmoke() {
@@ -750,9 +781,6 @@ class TrainLocomotive {
 
     setLights(on) {
         this.lightsOn = on;
-        if (this.headlight) {
-            this.headlight.intensity = on ? 3.4 : 0.0;
-        }
         if (this.headlightLensMat) {
             this.headlightLensMat.color.setHex(on ? 0xfff8d6 : 0x555555);
         }
@@ -771,6 +799,9 @@ class TrainLocomotive {
         }
         if (this.warningLampMat) {
             this.warningLampMat.color.setHex(on ? 0xffaa00 : 0x331100);
+        }
+        if (this.dashMat) {
+            this.dashMat.emissiveIntensity = on ? 0.65 : 0.15;
         }
         const glow = on ? 1.35 : 0.06;
         for (let i = 0; i < this.emissiveMaterials.length; i++) {
@@ -805,7 +836,7 @@ class TrainLocomotive {
             this.roofFans[i].rotation.y += fanSpeed * dt;
         }
 
-        // 2. Cab Instrument Needles & Levers (Section 4.2)
+        // 2. Cab Instrument Needles & Levers (Section 4.2 + Pro Cab)
         if (this.isDeckViewActive) {
             const kmh = this.physics.getKmh ? this.physics.getKmh() : (this.physics.speed * 3.6);
             const kmhRatio = Math.min(1.0, kmh / 80.0);
@@ -813,25 +844,33 @@ class TrainLocomotive {
                 this.speedNeedle.rotation.z = 2.2 - kmhRatio * 4.4;
             }
             if (this.brakeNeedle) {
-                const brakePressure = this.physics.isRunning ? 5.0 : 0.0;
+                const brakePressure = this.physics.getBrakePressureBar ? this.physics.getBrakePressureBar() : (this.physics.isRunning ? 5.0 : 0.0);
                 this.brakeNeedle.rotation.z = 2.2 - (brakePressure / 10.0) * 4.4;
             }
             if (this.amperageNeedle) {
-                const ampRatio = this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0.0;
+                const ampRatio = this.physics.getTractiveEffortRatio ? this.physics.getTractiveEffortRatio() : 0.0;
                 this.amperageNeedle.rotation.z = 2.2 - ampRatio * 4.4;
             }
             if (this.throttleHandle) {
-                const tf = this.physics.throttleFraction || 0.85;
+                const tf = this.physics.proCabMode ? (this.physics.notch / 8.0) : (this.physics.throttleFraction || 0.85);
                 this.throttleHandle.rotation.x = -0.4 + tf * 0.8;
             }
             if (this.brakeHandle) {
-                this.brakeHandle.rotation.x = this.physics.isRunning ? 0.35 : -0.35;
+                const bf = this.physics.proCabMode ? this.physics.brakeFraction : (this.physics.isRunning ? 0.0 : 1.0);
+                this.brakeHandle.rotation.x = 0.35 - bf * 0.7;
+            }
+            if (this.reverserHandle) {
+                const rev = this.physics.reverser || 0;
+                this.reverserHandle.rotation.x = rev * 0.42;
+            }
+            if (this.windRainMesh && this.windRainTex) {
+                this.windRainMesh.visible = !!this.physics.isRaining;
+                if (this.physics.isRaining) {
+                    this.windRainTex.offset.y += dt * (1.2 + kmhRatio * 1.4);
+                }
             }
             if (this.wiperArm) {
-                // Sweep wiper arm when rain is active (cached element, zero per-frame DOM search overhead)
-                if (!this._rainToggleBtn) this._rainToggleBtn = document.getElementById('btn-rain-toggle');
-                const isRaining = this.physics.isRaining || (this._rainToggleBtn && this._rainToggleBtn.dataset.on === 'true');
-                if (isRaining) {
+                if (this.physics.isRaining) {
                     this.wiperArm.rotation.z = Math.sin(performance.now() * 0.005) * 0.75;
                 } else {
                     this.wiperArm.rotation.z = 0;
@@ -850,21 +889,58 @@ class TrainLocomotive {
         }
     }
 
+    _updateBogieInstance(bogieIdx, pos, tangent, wheelRot) {
+        const yaw = Math.atan2(tangent.x, tangent.z);
+        this._bogieDummy.position.copy(pos);
+        this._bogieDummy.rotation.set(0, yaw, 0);
+        this._bogieDummy.updateMatrix();
+        this.bogieInst.setMatrixAt(bogieIdx, this._bogieDummy.matrix);
+
+        const wheelR = GAME_CONFIG.train.wheelRadius || 0.52;
+        const halfGauge = 0.82;
+        const cosY = Math.cos(yaw);
+        const sinY = Math.sin(yaw);
+        let wIdx = bogieIdx * 4;
+
+        for (let zi = -1; zi <= 1; zi += 2) {
+            const lz = zi * 0.82;
+            for (let xi = -1; xi <= 1; xi += 2) {
+                const lx = xi * halfGauge;
+                this._wheelDummy.position.set(
+                    pos.x + lx * cosY + lz * sinY,
+                    pos.y + wheelR,
+                    pos.z - lx * sinY + lz * cosY
+                );
+                this._wheelDummy.rotation.set(wheelRot, yaw, 0, 'YXZ');
+                this._wheelDummy.updateMatrix();
+                this.wheelInst.setMatrixAt(wIdx++, this._wheelDummy.matrix);
+            }
+        }
+    }
+
     _syncMeshes() {
-        // 1. Locomotive Main Body
+        const rot = this.physics.wheelRotation;
+        const spRatio = this.physics.getSpeedRatio ? this.physics.getSpeedRatio() : 0;
+        const swayT = performance.now() * 0.001;
+
+        // 1. Locomotive Main Body (with curve banking & subtle suspension sway)
         this.bodyGroup.position.copy(this.physics.currentPosition);
         const tan = this.physics.currentTangent;
         this.bodyGroup.rotation.y = Math.atan2(tan.x, tan.z);
         const hDist = Math.hypot(tan.x, tan.z) || 1.0;
         this.bodyGroup.rotation.x = -Math.atan2(tan.y, hDist);
+        const locoCurve = this.physics.frontBogieTan.x * this.physics.rearBogieTan.z - this.physics.frontBogieTan.z * this.physics.rearBogieTan.x;
+        const locoBank = Math.max(-0.055, Math.min(0.055, locoCurve * 0.55 * spRatio));
+        this.bodyGroup.rotation.z = locoBank + Math.sin(swayT * 2.5) * 0.008 * spRatio;
 
-        // 2. Locomotive Bogies
-        this.frontBogie.position.copy(this.physics.frontBogiePos);
-        this.frontBogie.rotation.y = Math.atan2(this.physics.frontBogieTan.x, this.physics.frontBogieTan.z);
-        this.rearBogie.position.copy(this.physics.rearBogiePos);
-        this.rearBogie.rotation.y = Math.atan2(this.physics.rearBogieTan.x, this.physics.rearBogieTan.z);
+        // 2. Locomotive Bogies & Wheels
+        let bIdx = 0;
+        if (this.bogieInst && this.wheelInst) {
+            this._updateBogieInstance(bIdx++, this.physics.frontBogiePos, this.physics.frontBogieTan, rot);
+            this._updateBogieInstance(bIdx++, this.physics.rearBogiePos, this.physics.rearBogieTan, rot);
+        }
 
-        // 3. Passenger Carriages
+        // 3. Passenger Carriages (with curve banking & staggered suspension sway)
         for (let i = 0; i < this.carriages.length; i++) {
             const car = this.carriages[i];
             const data = this.physics.carriagesData[i];
@@ -874,17 +950,19 @@ class TrainLocomotive {
             car.group.rotation.y = Math.atan2(data.tangent.x, data.tangent.z);
             const hd = Math.hypot(data.tangent.x, data.tangent.z) || 1.0;
             car.group.rotation.x = -Math.atan2(data.tangent.y, hd);
+            const carCurve = data.frontTangent.x * data.rearTangent.z - data.frontTangent.z * data.rearTangent.x;
+            const carBank = Math.max(-0.055, Math.min(0.055, carCurve * 0.55 * spRatio));
+            car.group.rotation.z = carBank + Math.sin(swayT * 2.5 + (i + 1) * 0.85) * 0.011 * spRatio;
 
-            car.frontBogie.position.copy(data.frontBogiePos);
-            car.frontBogie.rotation.y = Math.atan2(data.frontTangent.x, data.frontTangent.z);
-            car.rearBogie.position.copy(data.rearBogiePos);
-            car.rearBogie.rotation.y = Math.atan2(data.rearTangent.x, data.rearTangent.z);
+            if (this.bogieInst && this.wheelInst) {
+                this._updateBogieInstance(bIdx++, data.frontBogiePos, data.frontTangent, rot);
+                this._updateBogieInstance(bIdx++, data.rearBogiePos, data.rearTangent, rot);
+            }
         }
 
-        // 4. Wheels rotation
-        const rot = this.physics.wheelRotation;
-        for (let i = 0; i < this.wheelMeshes.length; i++) {
-            this.wheelMeshes[i].rotation.x = rot;
+        if (this.bogieInst && this.wheelInst) {
+            this.bogieInst.instanceMatrix.needsUpdate = true;
+            this.wheelInst.instanceMatrix.needsUpdate = true;
         }
     }
 

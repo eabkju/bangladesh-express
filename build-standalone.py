@@ -23,6 +23,7 @@ def build_standalone():
         'js/environment.js',
         'js/village.js',
         'js/weather.js',
+        'js/journey.js',
         'js/controls.js',
         'js/main.js'
     ]

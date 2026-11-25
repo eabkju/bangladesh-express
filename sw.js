@@ -1,5 +1,5 @@
 // sw.js - Offline Service Worker Cache (Section 15.4)
-const CACHE_NAME = 'train-v2';
+const CACHE_NAME = 'train-v3';
 const CORE_ASSETS = [
     './',
     'index.html',
@@ -13,6 +13,7 @@ const CORE_ASSETS = [
     'js/environment.js',
     'js/village.js',
     'js/weather.js',
+    'js/journey.js',
     'js/controls.js',
     'js/main.js'
 ];

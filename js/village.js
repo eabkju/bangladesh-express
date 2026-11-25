@@ -122,8 +122,23 @@ class VillageManager {
         const zebuWhiteTex = createZebuTex('#e6e8eb', '#9aa2ab');
         const zebuBrownTex = createZebuTex('#8c4828', '#5a2d18');
 
-        // Night-glow lantern material
+        // Night-glow lantern material & shared bulb glow sprite material
         const lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xffd978 });
+        const gCanvas = document.createElement('canvas');
+        gCanvas.width = 64; gCanvas.height = 64;
+        const gg = gCanvas.getContext('2d');
+        const grad = gg.createRadialGradient(32, 32, 2, 32, 32, 30);
+        grad.addColorStop(0, 'rgba(255, 210, 100, 0.85)');
+        grad.addColorStop(0.4, 'rgba(255, 170, 50, 0.35)');
+        grad.addColorStop(1, 'rgba(255, 140, 20, 0.0)');
+        gg.fillStyle = grad;
+        gg.fillRect(0, 0, 64, 64);
+        const bulbGlowSpriteMat = new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(gCanvas),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true
+        });
 
         this.materials = {
             tinRoof: new THREE.MeshLambertMaterial({ map: tinTex }),
@@ -148,7 +163,8 @@ class VillageManager {
             brassKettle: new THREE.MeshLambertMaterial({ color: 0xd4a017 }),
             clayPot: new THREE.MeshLambertMaterial({ color: 0x994828 }),
             sweetTray: new THREE.MeshLambertMaterial({ color: 0xffe299 }),
-            lanternGlow: lanternGlowMat
+            lanternGlow: lanternGlowMat,
+            bulbGlowSprite: bulbGlowSpriteMat
         };
         this.nightGlowMaterials.push(lanternGlowMat);
     }
@@ -654,25 +670,7 @@ class BengaliTeaStall {
         bulb.position.set(0, 1.95, 0.0);
         this.root.add(cord, bulb);
 
-        // Additive soft glow sprite (zero PointLight shader cost! U5 & B20)
-        const gCanvas = document.createElement('canvas');
-        gCanvas.width = 64; gCanvas.height = 64;
-        const gg = gCanvas.getContext('2d');
-        const grad = gg.createRadialGradient(32, 32, 2, 32, 32, 30);
-        grad.addColorStop(0, 'rgba(255, 210, 100, 0.85)');
-        grad.addColorStop(0.4, 'rgba(255, 170, 50, 0.35)');
-        grad.addColorStop(1, 'rgba(255, 140, 20, 0.0)');
-        gg.fillStyle = grad;
-        gg.fillRect(0, 0, 64, 64);
-        const glowTex = new THREE.CanvasTexture(gCanvas);
-
-        const glowMat = new THREE.SpriteMaterial({
-            map: glowTex,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            transparent: true
-        });
-        const glowSprite = new THREE.Sprite(glowMat);
+        const glowSprite = new THREE.Sprite(this.materials.bulbGlowSprite);
         glowSprite.scale.set(3.8, 3.8, 1.0);
         glowSprite.position.set(0, 1.95, 0);
         this.root.add(glowSprite);

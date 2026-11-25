@@ -920,11 +920,158 @@ body.deck-view #canvas-container::after {
   font-variant-numeric: tabular-nums;
 }
 
-#controls-panel #throttle-slider {
+#controls-panel #throttle-slider,
+#controls-panel #brake-slider {
   width: 100%;
   accent-color: var(--accent-gold);
   height: 20px;
   cursor: pointer;
+}
+
+#controls-panel #brake-slider {
+  accent-color: #ef4444;
+}
+
+.reverser-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.rev-btn {
+  flex: 1;
+  padding: 5px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rev-btn.active {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.notch-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notch-step-btn {
+  width: 24px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notch-step-btn:active {
+  background: rgba(250, 204, 21, 0.3);
+}
+
+/* Journey Pill, Scorecard & Prompt */
+#journey-pill {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 60px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(10, 18, 32, 0.72);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#journey-signal-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px currentColor;
+  flex-shrink: 0;
+}
+
+#journey-scorecard {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 92px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  z-index: 44;
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(10, 18, 32, 0.88);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(12px);
+  color: #cbd5e1;
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#journey-scorecard.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+#journey-scorecard > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#journey-scorecard strong {
+  color: var(--accent-gold);
+  font-size: 13px;
+}
+
+#journey-prompt {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 12px) + 52px);
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  z-index: 46;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(10, 18, 32, 0.88);
+  border: 1.5px solid var(--accent-gold);
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+}
+
+#journey-prompt.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .panel-cam-box {

@@ -6,10 +6,16 @@ class TrainPhysics {
         this.trackLength = trackSystem.totalLength;
 
         // Kinematic states
-        this.speed = 0.0;                  // Current speed in m/s
-        this.targetSpeed = 0.0;            // Target speed in m/s
-        this.throttleFraction = 0.85;      // User throttle setting (0.2 to 1.0)
-        this.isRunning = false;            // Throttle active state
+        this.proCabMode = GAME_CONFIG.train.proCabDefault !== false;
+        this.speed = 0.0;                  // Speed magnitude in m/s
+        this.signedSpeed = 0.0;            // Signed velocity (+forward / -reverse) in m/s
+        this.targetSpeed = 0.0;            // Simple-mode target speed in m/s
+        this.throttleFraction = 0.85;      // Simple-mode throttle setting (0.0 to 1.0)
+        this.notch = 5;                    // Pro Cab throttle notch (0..8)
+        this.reverser = 1;                 // Pro Cab reverser: 1=FWD, 0=NEU, -1=REV
+        this.brakeFraction = 0.0;          // Pro Cab air brake (0.0=Released .. 1.0=Full)
+        this.isRunning = true;             // Active driving state
+        this.isRaining = false;            // Synced from WeatherManager
         this.progress = 0.02;              // Normalized track parameter u in [0, 1)
         this.wheelRotation = 0.0;          // Wheel rotation in radians
 
@@ -45,12 +51,59 @@ class TrainPhysics {
 
     setRunning(isRunning) {
         this.isRunning = isRunning;
-        this.targetSpeed = isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
+        if (this.proCabMode) {
+            if (!isRunning) {
+                this.notch = 0;
+                this.brakeFraction = 0.85;
+            } else {
+                this.brakeFraction = 0.0;
+                if (this.notch === 0) this.notch = 4;
+                if (this.reverser === 0) this.reverser = 1;
+            }
+        } else {
+            this.targetSpeed = isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
+        }
+    }
+
+    setProCabMode(enabled) {
+        this.proCabMode = !!enabled;
+        if (this.proCabMode) {
+            this.notch = this.isRunning ? Math.max(1, Math.round(this.throttleFraction * 8)) : 0;
+            this.brakeFraction = this.isRunning ? 0.0 : 0.6;
+        } else {
+            this.throttleFraction = this.notch / 8.0;
+            this.isRunning = this.notch > 0 && this.brakeFraction < 0.5;
+            this.targetSpeed = this.isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
+        }
+    }
+
+    setNotch(n) {
+        this.notch = Math.max(0, Math.min(8, Math.round(n)));
+        this.throttleFraction = this.notch / 8.0;
+        this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+    }
+
+    setReverser(dir) {
+        const clamped = dir > 0 ? 1 : (dir < 0 ? -1 : 0);
+        // Only allow shifting reverser when nearly stationary
+        if (this.speed > 0.4 && clamped !== this.reverser) return false;
+        this.reverser = clamped;
+        this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+        return true;
+    }
+
+    setBrake(fraction) {
+        this.brakeFraction = Math.max(0.0, Math.min(1.0, fraction));
+        if (this.proCabMode) {
+            this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+        }
     }
 
     setThrottleFraction(fraction) {
-        this.throttleFraction = Math.max(0.2, Math.min(1.0, fraction));
-        if (this.isRunning) {
+        this.throttleFraction = Math.max(0.0, Math.min(1.0, fraction));
+        if (this.proCabMode) {
+            this.setNotch(Math.round(this.throttleFraction * 8));
+        } else if (this.isRunning) {
             this.targetSpeed = GAME_CONFIG.train.maxSpeed * this.throttleFraction;
         }
     }
@@ -68,29 +121,73 @@ class TrainPhysics {
     update(dt) {
         const delta = Math.min(dt, 0.1);
 
-        // Smooth acceleration / braking dynamics
-        if (this.speed < this.targetSpeed) {
-            this.speed += GAME_CONFIG.train.acceleration * delta;
-            if (this.speed > this.targetSpeed) this.speed = this.targetSpeed;
-        } else if (this.speed > this.targetSpeed) {
-            const decelRate = this.targetSpeed === 0.0
-                ? GAME_CONFIG.train.deceleration
-                : GAME_CONFIG.train.friction * 2.5;
-            this.speed -= decelRate * delta;
-            if (this.speed < this.targetSpeed) this.speed = this.targetSpeed;
+        if (this.proCabMode) {
+            const speedRatio = this.getSpeedRatio();
+            const maxSpd = GAME_CONFIG.train.maxSpeed * (this.reverser === -1 ? 0.45 : 1.0);
+            const targetSpd = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85)
+                ? this.reverser * maxSpd * (this.notch / 8.0)
+                : 0.0;
+
+            // Tractive effort
+            if (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85) {
+                const effort = (this.notch / 8.0) * GAME_CONFIG.train.acceleration * (1.2 - 0.35 * speedRatio);
+                if (this.reverser > 0 && this.signedSpeed < targetSpd) {
+                    this.signedSpeed = Math.min(targetSpd, this.signedSpeed + effort * delta);
+                } else if (this.reverser < 0 && this.signedSpeed > targetSpd) {
+                    this.signedSpeed = Math.max(targetSpd, this.signedSpeed - effort * delta);
+                }
+            }
+
+            // Grade resistance (climbing slows slightly, descending accelerates slightly)
+            if (this.speed > 0.05 || (this.notch === 0 && this.brakeFraction < 0.1)) {
+                this.signedSpeed -= this.currentTangent.y * 3.5 * delta;
+            }
+
+            // Rolling & aerodynamic drag + Air Brake
+            const drag = GAME_CONFIG.train.friction + 0.0016 * this.speed * this.speed;
+            const brakeDecel = this.brakeFraction * GAME_CONFIG.train.deceleration;
+            const totalOppose = (this.notch === 0 || this.reverser === 0 || this.brakeFraction > 0.02 || Math.abs(this.signedSpeed) > Math.abs(targetSpd))
+                ? (drag + brakeDecel)
+                : 0.0;
+
+            if (totalOppose > 0 && Math.abs(this.signedSpeed) > 0.0) {
+                const sign = this.signedSpeed >= 0 ? 1 : -1;
+                const nextMag = Math.max(0.0, Math.abs(this.signedSpeed) - totalOppose * delta);
+                this.signedSpeed = sign * nextMag;
+            }
+
+            if (Math.abs(this.signedSpeed) < 0.02 && (this.notch === 0 || this.reverser === 0 || this.brakeFraction > 0.1)) {
+                this.signedSpeed = 0.0;
+            }
+            this.speed = Math.abs(this.signedSpeed);
+            this.isRunning = (this.reverser !== 0 && this.notch > 0 && this.brakeFraction < 0.85);
+        } else {
+            // Simple Mode acceleration / braking dynamics
+            if (this.speed < this.targetSpeed) {
+                this.speed += GAME_CONFIG.train.acceleration * delta;
+                if (this.speed > this.targetSpeed) this.speed = this.targetSpeed;
+            } else if (this.speed > this.targetSpeed) {
+                const decelRate = !this.isRunning
+                    ? GAME_CONFIG.train.deceleration
+                    : (this.targetSpeed === 0.0 ? GAME_CONFIG.train.friction : GAME_CONFIG.train.friction * 2.5);
+                this.speed -= decelRate * delta;
+                if (this.speed < this.targetSpeed) this.speed = this.targetSpeed;
+            }
+            this.signedSpeed = this.speed;
         }
 
         // Skip spline updates completely if stationary (saves CPU!)
         if (this.speed <= 0.0001) {
             this.speed = 0.0;
+            this.signedSpeed = 0.0;
             return false; // Indicates no movement occurred
         }
 
-        const distanceDelta = this.speed * delta;
+        const distanceDelta = this.signedSpeed * delta;
         this.wheelRotation += distanceDelta / GAME_CONFIG.train.wheelRadius;
 
         const deltaU = distanceDelta / this.trackLength;
-        this.progress = (this.progress + deltaU) % 1.0;
+        this.progress = (((this.progress + deltaU) % 1.0) + 1.0) % 1.0;
 
         this._syncAllCarPositions();
         return true;
@@ -165,5 +262,16 @@ class TrainPhysics {
 
     getSpeedRatio() {
         return Math.min(1.0, this.speed / GAME_CONFIG.train.maxSpeed);
+    }
+
+    getBrakePressureBar() {
+        if (!this.proCabMode) return this.isRunning ? 5.0 : 0.0;
+        return Math.max(0.0, 5.0 * (1.0 - this.brakeFraction));
+    }
+
+    getTractiveEffortRatio() {
+        if (!this.proCabMode) return this.getSpeedRatio();
+        if (this.reverser === 0 || this.brakeFraction >= 0.85) return 0.0;
+        return this.notch / 8.0;
     }
 }

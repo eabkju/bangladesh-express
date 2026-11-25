@@ -25,6 +25,7 @@ class TrackSystem {
         this.buildRails();
         this.buildSleepers();
         this.buildBridgeOverpass();
+        this.buildRiverBridges();
 
         // Freeze static track matrices to eliminate per-frame scene traversal overhead
         this.trackGroup.traverse((child) => {
@@ -64,13 +65,15 @@ class TrackSystem {
             new THREE.Vector3(   120.0,  3.4, -200.0 ),
             new THREE.Vector3( W * 0.65, 1.3, -500.0 ),
 
-            // 6. North Village Loop
+            // 6. North Village Loop (with gentle 1.8m rise over River Khal at z = -935)
             new THREE.Vector3( W      , 0.0, -800.0 ),
+            new THREE.Vector3( W * 0.92, 1.8, -935.0 ),
             new THREE.Vector3( W * 0.8, 0.0, -L - 120.0 ),
             new THREE.Vector3( W * 0.4, 0.0, -L - 280.0 ),
             new THREE.Vector3(     0.0, 0.0, -L - 340.0 ),
             new THREE.Vector3(-W * 0.4, 0.0, -L - 280.0 ),
             new THREE.Vector3(-W * 0.8, 0.0, -L - 120.0 ),
+            new THREE.Vector3(-W * 0.92, 1.8, -935.0 ),
             new THREE.Vector3(-W      , 0.0, -800.0 ),
             new THREE.Vector3(-W * 0.7, 0.0, -500.0 )
         ];
@@ -352,7 +355,7 @@ class TrackSystem {
         this.trackGroup.add(instancedSleepers);
     }
 
-    // Grand Steel Truss & Concrete Pier Overpass Bridge at the Center Crossing
+    // Grand Steel Truss & Concrete Pier Overpass Bridge at the Center Crossing (3 merged draw calls)
     buildBridgeOverpass() {
         const bridgeGroup = new THREE.Group();
         const concreteMat = new THREE.MeshLambertMaterial({ color: 0x8e887f });
@@ -362,57 +365,111 @@ class TrackSystem {
         const bridgeAngle = -Math.atan2(120, 200);
         bridgeGroup.rotation.y = bridgeAngle;
 
+        const concreteGeoms = [];
+        const steelGeoms = [];
+        const accentGeoms = [];
+
+        const pushGeo = (list, geo, x, y, z, rx = 0) => {
+            if (rx) geo.rotateX(rx);
+            geo.translate(x, y, z);
+            list.push(geo);
+        };
+
         // 1. Concrete support piers (placed clear of the lower track)
         [-14, 14, -32, 32].forEach(zOff => {
             [-2.1, 2.1].forEach(xOff => {
                 const h = Math.abs(zOff) < 20 ? 4.8 : 4.2;
-                const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.72, h, 8), concreteMat);
-                pier.position.set(xOff, h * 0.5 - 0.1, zOff);
-                bridgeGroup.add(pier);
+                pushGeo(concreteGeoms, new THREE.CylinderGeometry(0.52, 0.72, h, 8), xOff, h * 0.5 - 0.1, zOff);
             });
-            const cap = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.45, 1.4), concreteMat);
-            cap.position.set(0, Math.abs(zOff) < 20 ? 4.55 : 3.95, zOff);
-            bridgeGroup.add(cap);
+            pushGeo(concreteGeoms, new THREE.BoxGeometry(5.2, 0.45, 1.4), 0, Math.abs(zOff) < 20 ? 4.55 : 3.95, zOff);
         });
 
         // 2. Main bridge deck & side girders
-        const deck = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.45, 76.0), steelMat);
-        deck.position.set(0, 4.72, 0);
-        bridgeGroup.add(deck);
+        pushGeo(steelGeoms, new THREE.BoxGeometry(4.8, 0.45, 76.0), 0, 4.72, 0);
 
         // 3. Overhead steel truss arches along central span (-22m to +22m)
         [-2.25, 2.25].forEach(xSide => {
-            // Bottom & top chords
-            const bottomChord = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 76.0), steelMat);
-            bottomChord.position.set(xSide, 5.1, 0);
-            bridgeGroup.add(bottomChord);
+            pushGeo(steelGeoms, new THREE.BoxGeometry(0.24, 0.28, 76.0), xSide, 5.1, 0);
+            pushGeo(steelGeoms, new THREE.BoxGeometry(0.26, 0.28, 44.0), xSide, 8.8, 0);
 
-            const topChord = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 44.0), steelMat);
-            topChord.position.set(xSide, 8.8, 0);
-            bridgeGroup.add(topChord);
-
-            // Vertical & diagonal truss struts
             for (let z = -20; z <= 20; z += 5) {
-                const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.8, 0.2), steelMat);
-                post.position.set(xSide, 6.95, z);
-                bridgeGroup.add(post);
-
+                pushGeo(steelGeoms, new THREE.BoxGeometry(0.2, 3.8, 0.2), xSide, 6.95, z);
                 if (z < 20) {
-                    const diag = new THREE.Mesh(new THREE.BoxGeometry(0.14, 6.1, 0.14), accentMat);
-                    diag.position.set(xSide, 6.95, z + 2.5);
-                    diag.rotation.x = (z % 10 === 0) ? 0.72 : -0.72;
-                    bridgeGroup.add(diag);
+                    const rx = (z % 10 === 0) ? 0.72 : -0.72;
+                    pushGeo(accentGeoms, new THREE.BoxGeometry(0.14, 6.1, 0.14), xSide, 6.95, z + 2.5, rx);
                 }
             }
         });
 
         // Overhead lateral portal beams
         for (let z = -20; z <= 20; z += 10) {
-            const portal = new THREE.Mesh(new THREE.BoxGeometry(4.7, 0.24, 0.28), steelMat);
-            portal.position.set(0, 8.8, z);
-            bridgeGroup.add(portal);
+            pushGeo(steelGeoms, new THREE.BoxGeometry(4.7, 0.24, 0.28), 0, 8.8, z);
+        }
+
+        if (window.mergeStaticGeometries) {
+            bridgeGroup.add(new THREE.Mesh(window.mergeStaticGeometries(concreteGeoms), concreteMat));
+            bridgeGroup.add(new THREE.Mesh(window.mergeStaticGeometries(steelGeoms), steelMat));
+            bridgeGroup.add(new THREE.Mesh(window.mergeStaticGeometries(accentGeoms), accentMat));
         }
 
         this.trackGroup.add(bridgeGroup);
+    }
+
+    // Two Steel Plate-Girder River Bridges over the North River / Khal (z = -935)
+    buildRiverBridges() {
+        const concreteMat = new THREE.MeshLambertMaterial({ color: 0x8e887f });
+        const girderMat = new THREE.MeshLambertMaterial({ color: 0x7c2d23 }); // Classic Bangladesh red-oxide steel bridge
+
+        const concreteGeoms = [];
+        const girderGeoms = [];
+        const m4 = new THREE.Matrix4();
+        const pos = new THREE.Vector3();
+        const tan = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        const euler = new THREE.Euler();
+        const scale = new THREE.Vector3(1, 1, 1);
+
+        // Find the 2 river crossing points (z near -935, y > 1.2)
+        const crossings = [];
+        for (let i = 0; i < this.N; i++) {
+            if (Math.abs(this.Z[i] + 935) < 6 && this.Y[i] > 1.3) {
+                const already = crossings.some(c => Math.abs(this.X[c] - this.X[i]) < 50);
+                if (!already) crossings.push(i);
+            }
+        }
+
+        crossings.forEach(idx => {
+            const u = idx / this.N;
+            this.samplePoint(u, pos);
+            this.sampleTangent(u, tan);
+            const yaw = Math.atan2(tan.x, tan.z);
+            euler.set(0, yaw, 0);
+            quat.setFromEuler(euler);
+
+            const addLocal = (list, geo, lx, ly, lz) => {
+                geo.translate(lx, ly, lz);
+                m4.compose(pos, quat, scale);
+                geo.applyMatrix4(m4);
+                list.push(geo);
+            };
+
+            // Deck & side plate girders (44m span)
+            addLocal(girderGeoms, new THREE.BoxGeometry(4.4, 0.35, 44), 0, -0.25, 0);
+            addLocal(girderGeoms, new THREE.BoxGeometry(0.28, 1.45, 44), -2.15, 0.45, 0);
+            addLocal(girderGeoms, new THREE.BoxGeometry(0.28, 1.45, 44), 2.15, 0.45, 0);
+
+            // Concrete river piers
+            [-16, 0, 16].forEach(pz => {
+                [-1.7, 1.7].forEach(px => {
+                    addLocal(concreteGeoms, new THREE.CylinderGeometry(0.45, 0.62, 2.4, 8), px, -1.35, pz);
+                });
+                addLocal(concreteGeoms, new THREE.BoxGeometry(4.6, 0.38, 1.2), 0, -0.45, pz);
+            });
+        });
+
+        if (window.mergeStaticGeometries && concreteGeoms.length > 0) {
+            this.trackGroup.add(new THREE.Mesh(window.mergeStaticGeometries(concreteGeoms), concreteMat));
+            this.trackGroup.add(new THREE.Mesh(window.mergeStaticGeometries(girderGeoms), girderMat));
+        }
     }
 }
